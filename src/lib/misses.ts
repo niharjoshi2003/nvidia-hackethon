@@ -64,6 +64,26 @@ export function priorMissOnSameLine(
     .sort(newestFirst)[0];
 }
 
+/**
+ * Open misses on this topic that a later grade says are now covered.
+ *
+ * This is the only automatic way a miss closes. It requires the new grade to
+ * have been accepted by the citation gate, so a rejected or failed grade can
+ * never clear anything — otherwise a model that failed to cite could erase the
+ * record of the thing it failed to cite.
+ */
+export function missesToResolve(
+  misses: SpokenMiss[],
+  topicId: string,
+  coveredLines: string[],
+): SpokenMiss[] {
+  if (coveredLines.length === 0) return [];
+  const covered = new Set(coveredLines);
+  return misses.filter(
+    (m) => m.topicId === topicId && m.status === "open" && covered.has(m.rubricLine),
+  );
+}
+
 // --- cross-topic pattern ----------------------------------------------------
 
 export interface MissPattern {
