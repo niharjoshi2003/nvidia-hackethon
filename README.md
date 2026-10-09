@@ -14,9 +14,7 @@ That miss is then stored, and it decides what you practise next.
 Built for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/),
 **Personal AI** track.
 
-**Live demo:** deploy with [Vercel](https://vercel.com) using [`vercel.json`](vercel.json) and set
-`TOKEN_FACTORY_API_KEY`, `NEMOTRON_NANO`, and `NEMOTRON_ULTRA` (see [Running it](#running-it)).
-After deploy, put the URL here and in the repo About section.
+**Live demo:** follow [`docs/DEPLOY.md`](docs/DEPLOY.md) (Vercel + server env vars). Paste the production URL here after deploy.
 
 **Demo video:** record per [`docs/spec/06-demo.md`](docs/spec/06-demo.md) (≤3 min, public YouTube) and link here before Devpost submit — checklist in [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
 
@@ -272,15 +270,15 @@ in-process [`api/grade.ts`](api/grade.ts). Spike ids and latency: [`docs/evaluat
 | False miss on a complete answer | **1 of 17** complete fixtures graded a miss (`sd-queue-delivery-complete`) |
 | Unsupported / declined judgments | **2** refusals on omissions (schema / coverage cross-check) |
 
-**Ablation** (counts vs label **A**, not percentages):
+**Ablation** (counts vs label **A**, not percentages; frozen set in [`eval/fixtures.json`](eval/fixtures.json)):
 
-| Configuration | Agrees with A | False misses | Declined | Failed | Median ms | Tokens in/out |
-| --- | --- | --- | --- | --- | --- | --- |
-| two-stage | 34 of 37 | 1 of 17 | 2 | 0 | 6890 | 42714 / 59164 |
-| nano-only | _see `eval/results/nano-only.json`_ | | | | | |
-| ultra-only | _see `eval/results/ultra-only.json`_ | | | | | |
+| Configuration | Agrees with A | Agrees with B | False misses | Declined | Failed | Median ms | Tokens in/out |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| two-stage | 34 of 37 | 34 of 37 | 1 of 17 | 2 | 0 | 6890 | 42714 / 59164 |
+| nano-only | 21 of 37 | 21 of 37 | 1 of 17 | 4 | 10 | 16792 | 35893 / 74305 |
+| ultra-only | 36 of 37 | 36 of 37 | 0 of 17 | 1 | 0 | 5159 | 42699 / 53377 |
 
-Re-run `npm run eval` and copy the printed table into this section; per-answer detail is in [`eval/results/`](eval/results/).
+On this rubric-aligned set, **Ultra alone scored higher agreement than the two-stage split** (36 vs 34 agrees-with-A), at lower median latency. We still ship two-stage in production because Nano keeps the coverage pass cheap and separates extraction from judgment; the ablation is reported honestly. Per-answer rows: [`eval/results/`](eval/results/). Re-run: `npm run eval`.
 
 ## Known limitations
 
