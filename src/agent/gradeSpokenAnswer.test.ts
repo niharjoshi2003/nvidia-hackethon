@@ -87,6 +87,71 @@ describe("gradeSpokenAnswer", () => {
     expect(result.reason).toBe("rubric-line-not-supplied");
   });
 
+  it("accepts a no-miss verdict when the coverage pass confirmed every key point", async () => {
+    const result = await gradeSpokenAnswer({
+      topic,
+      transcript: TRANSCRIPT,
+      fetchImpl: respond(
+        okBody(
+          { noMiss: true, coveredRubricLines: [topic.scaffold.commonGotchas[0]] },
+          { covered: topic.scaffold.keyPoints, skipped: [] },
+        ),
+      ),
+    });
+
+    expect(result.status).toBe("clean");
+    if (result.status !== "clean") return;
+    expect(result.coverage.covered).toEqual(
+      expect.arrayContaining([...topic.scaffold.keyPoints, topic.scaffold.commonGotchas[0]]),
+    );
+  });
+
+  it("rejects a no-miss verdict when coverage evidence is not in the transcript", async () => {
+    const result = await gradeSpokenAnswer({
+      topic,
+      transcript: TRANSCRIPT,
+      fetchImpl: respond(
+        okBody(
+          { noMiss: true },
+          {
+            items: topic.scaffold.keyPoints.map((point) => ({
+              point,
+              status: "covered",
+              evidence: "this sentence was never spoken",
+            })),
+          },
+        ),
+      ),
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") return;
+    expect(result.reason).toBe("clean-contradicts-coverage");
+  });
+
+  it("rejects a no-miss verdict when the coverage pass found a skipped key point", async () => {
+    const [first, ...rest] = topic.scaffold.keyPoints;
+    const result = await gradeSpokenAnswer({
+      topic,
+      transcript: TRANSCRIPT,
+      fetchImpl: respond(okBody({ noMiss: true }, { covered: rest, skipped: [first] })),
+    });
+
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") return;
+    expect(result.reason).toBe("clean-contradicts-coverage");
+  });
+
+  it("does not let a malformed coverage response vouch for a no-miss verdict", async () => {
+    const result = await gradeSpokenAnswer({
+      topic,
+      transcript: TRANSCRIPT,
+      fetchImpl: respond(okBody({ noMiss: true }, null)),
+    });
+
+    expect(result.status).toBe("rejected");
+  });
+
   it("reports the shared demo quota distinctly so the UI can offer a key", async () => {
     const result = await gradeSpokenAnswer({
       topic,

@@ -50,6 +50,8 @@ function getConstructor(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+const FATAL_ERRORS = new Set(["network", "not-allowed", "service-not-allowed", "audio-capture"]);
+
 export function isTranscriptionSupported(): boolean {
   return getConstructor() !== null;
 }
@@ -101,7 +103,10 @@ export function startLiveTranscript(options: LiveTranscriptOptions = {}): LiveTr
   recognition.onerror = (event) => {
     // 'no-speech' and 'aborted' are normal and not worth surfacing.
     const error = event.error ?? "unknown";
-    if (error !== "no-speech" && error !== "aborted") options.onError?.(error);
+    if (error === "no-speech" || error === "aborted") return;
+    // These do not recover by restarting; retrying only loops on the same error.
+    if (FATAL_ERRORS.has(error)) stopped = true;
+    options.onError?.(error);
   };
 
   recognition.onend = () => {

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "retries-omits-key",
+    "topicId": "agentic-tool-retries",
+    "kind": "omission",
+    "transcript": "So when the payments call times out I would not just assume it failed, because the charge might have gone through. I would retry with exponential backoff and jitter so all the agents do not hammer the service at once, only on five hundreds and timeouts, not on validation errors, and I would cap it at a few attempts and then report the failure back instead of looping forever.",
+    "labels": {
+      "a": "An idempotency key must be generated once per logical operation, not once per attempt",
+      "b": "An idempotency key must be generated once per logical operation, not once per attempt"
+    }
+  },
+  {
+    "id": "retries-complete",
+    "topicId": "agentic-tool-retries",
+    "kind": "complete",
+    "transcript": "A timeout is ambiguous, the write may have landed, so I cannot treat it as a failure. Before the first attempt I generate one idempotency key for the whole logical operation and reuse it on every retry, and the server stores that key with the result, so a replay just returns the original response instead of charging twice. I only retry retriable errors like five hundreds and timeouts, never four hundred validation errors, with exponential backoff and jitter so agents do not retry in lockstep. Attempts are capped in code, not left to the model, and after the cap I surface a terminal failure to the caller.",
+    "labels": { "a": null, "b": null }
+  }
+]

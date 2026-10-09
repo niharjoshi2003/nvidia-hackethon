@@ -10,3 +10,5 @@ dist/
 coverage/
 .vercel/
 .vite/
+*.tsbuildinfo
+eval-last-run.log

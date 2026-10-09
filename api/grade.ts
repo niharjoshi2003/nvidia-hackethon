@@ -18,6 +18,7 @@
  */
 
 import { z } from "zod";
+import { validateCoverage } from "../src/agent/gradeSchema";
 import {
   COVERAGE_SYSTEM,
   JUDGMENT_SYSTEM,
@@ -105,12 +106,23 @@ interface CallResult {
   parsed: unknown;
 }
 
+interface ModelOptions {
+  /** Caps the completion, including any reasoning tokens the model still emits. */
+  maxTokens: number;
+  /**
+   * Coverage is a classification, and Nemotron's hidden reasoning both blew the
+   * latency budget and collapsed the labels. Judgment keeps reasoning on.
+   */
+  disableThinking?: boolean;
+}
+
 async function callModel(
   apiKey: string,
   model: string,
   purpose: "coverage" | "judgment",
   system: string,
   user: string,
+  options: ModelOptions,
 ): Promise<CallResult> {
   const started = Date.now();
   const controller = new AbortController();
@@ -138,8 +150,11 @@ async function callModel(
       body: JSON.stringify({
         model,
         temperature: 0,
-        max_tokens: 700,
+        max_tokens: options.maxTokens,
         response_format: { type: "json_object" },
+        ...(options.disableThinking
+          ? { chat_template_kwargs: { enable_thinking: false } }
+          : {}),
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -185,6 +200,25 @@ async function callModel(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * One retry when the model answered but the JSON did not parse. HTTP errors
+ * and timeouts are not retried: they cost the same again and rarely recover.
+ * Both attempts are recorded, so the trace shows the retry.
+ */
+async function callModelWithRetry(
+  calls: CallRecord[],
+  ...args: Parameters<typeof callModel>
+): Promise<CallResult> {
+  const first = await callModel(...args);
+  calls.push(first.record);
+  if (!first.record.ok || first.parsed !== null) return first;
+
+  first.record.error = "unparseable JSON, retried";
+  const second = await callModel(...args);
+  calls.push(second.record);
+  return second;
 }
 
 function extractError(body: unknown, status: number): string {
@@ -263,27 +297,36 @@ export default async function handler(req: Request): Promise<Response> {
   const calls: CallRecord[] = [];
 
   // Stage 1, cheap pass: which key points were covered.
-  const coverage = await callModel(apiKey, nano, "coverage", COVERAGE_SYSTEM, coverageUser(request));
-  calls.push(coverage.record);
+  const coverage = await callModelWithRetry(
+    calls,
+    apiKey,
+    nano,
+    "coverage",
+    COVERAGE_SYSTEM,
+    coverageUser(request),
+    { maxTokens: 900, disableThinking: true },
+  );
   if (!coverage.record.ok) {
     return json(502, { error: "coverage-error", detail: coverage.record.error, calls });
   }
 
-  // Stage 2, judgment: one miss, cited. Stage 1's skipped list is a hint only.
-  const skipped = Array.isArray((coverage.parsed as { skipped?: unknown })?.skipped)
-    ? ((coverage.parsed as { skipped: unknown[] }).skipped.filter(
-        (s): s is string => typeof s === "string",
-      ) as string[])
-    : [];
+  // Stage 2, judgment: one miss, cited. Stage 1's skipped list is a hint only,
+  // and only the points whose evidence survived the same check the browser runs.
+  const skipped = validateCoverage(
+    coverage.parsed,
+    request.keyPoints,
+    request.transcript,
+  ).skipped;
 
-  const judgment = await callModel(
+  const judgment = await callModelWithRetry(
+    calls,
     apiKey,
     ultra,
     "judgment",
     JUDGMENT_SYSTEM,
     judgmentUser(request, skipped),
+    { maxTokens: 4000 },
   );
-  calls.push(judgment.record);
   if (!judgment.record.ok) {
     return json(502, { error: "judgment-error", detail: judgment.record.error, calls });
   }

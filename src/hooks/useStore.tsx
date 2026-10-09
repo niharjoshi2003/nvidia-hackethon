@@ -89,7 +89,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       let misses = prev.misses;
       const grade = input.grade;
 
-      if (grade?.status === "graded") {
+      if (grade?.status === "graded" || grade?.status === "clean") {
         // Close anything this answer now covers, before adding the new miss, so
         // a line cited again today is not closed by the same grade that raised it.
         const closing = new Set(
@@ -102,7 +102,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               : m,
           );
         }
+      }
 
+      if (grade?.status === "graded") {
         created = {
           ...grade.miss,
           id: uid("miss"),
@@ -212,6 +214,7 @@ function tallyGrade(stats: AppState["gradeStats"], grade: GradeOutcome | null) {
   return {
     attempted: stats.attempted + 1,
     accepted: stats.accepted + (grade.status === "graded" ? 1 : 0),
+    clean: stats.clean + (grade.status === "clean" ? 1 : 0),
     rejected: stats.rejected + (grade.status === "rejected" ? 1 : 0),
     failed: stats.failed + (grade.status === "failed" ? 1 : 0),
   };

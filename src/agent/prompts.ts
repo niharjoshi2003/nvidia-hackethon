@@ -27,11 +27,18 @@ const bullet = (lines: string[]) => lines.map((l) => `- ${l}`).join("\n");
 export const COVERAGE_SYSTEM = [
   "You classify which rubric key points a spoken answer covered.",
   "",
-  "Return JSON with exactly two fields: covered and skipped, both arrays of strings.",
-  "Every string MUST be copied character-for-character from the supplied key points.",
-  "Do not invent points, merge points, rewrite them, or add commentary.",
-  "A point counts as covered only if the speaker addressed its substance, not merely a related word.",
-  "Every supplied key point must appear in exactly one of the two arrays.",
+  "Return JSON with one field, items: one entry per supplied key point.",
+  "Each entry has point, status, and evidence.",
+  "point MUST be copied character-for-character from the supplied key points.",
+  'status is exactly "covered" or "skipped".',
+  "When status is covered, evidence MUST be a short fragment copied",
+  "character-for-character from the transcript — the words where the speaker",
+  "states that point. When status is skipped, evidence is an empty string.",
+  "The speaker will paraphrase. A point is covered only when the transcript",
+  "states that point's own idea. A neighbouring point being covered is not",
+  "enough, and a related word is not enough.",
+  "Do not invent points, merge points, or rewrite them.",
+  "Every supplied key point appears exactly once.",
 ].join("\n");
 
 export function coverageUser(req: GradeRequest): string {
@@ -42,7 +49,7 @@ export function coverageUser(req: GradeRequest): string {
     "TRANSCRIPT OF THE SPOKEN ANSWER:",
     req.transcript,
     "",
-    'Return JSON: {"covered": string[], "skipped": string[]}',
+    'Return JSON: {"items":[{"point": string, "status": "covered" | "skipped", "evidence": string}]}',
   ].join("\n");
 }
 
@@ -63,8 +70,10 @@ export const JUDGMENT_SYSTEM = [
   "",
   "Choose the miss that would most change an interviewer's judgment of this answer.",
   "Prefer a substantive omission over a presentation issue.",
-  "If the answer genuinely covered everything, pick the rubric line it handled most",
-  "weakly and say so plainly in plainLanguage.",
+  "",
+  "If the answer covered the substance of every rubric line, do not invent a miss.",
+  'Return {"noMiss": true, "coveredRubricLines": string[]} instead. Inventing a flaw in a',
+  "complete answer is the worst error you can make here.",
 ].join("\n");
 
 export function judgmentUser(req: GradeRequest, skipped: string[]): string {
@@ -95,9 +104,11 @@ export function judgmentUser(req: GradeRequest, skipped: string[]): string {
     "TRANSCRIPT OF THE SPOKEN ANSWER:",
     req.transcript,
     "",
-    "Return JSON:",
+    "Return JSON, either:",
     '{"missType": string, "category": string, "quote": string, "rubricLine": string,',
     ' "plainLanguage": string, "coveredRubricLines": string[]}',
+    "or, only when nothing substantive was missed:",
+    '{"noMiss": true, "coveredRubricLines": string[]}',
   );
 
   return sections.join("\n");

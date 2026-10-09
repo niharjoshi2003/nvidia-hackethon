@@ -95,7 +95,8 @@ export default function Home() {
 
       {state.gradeStats.attempted > 0 && (
         <p className="mt-6 text-xs text-zinc-500">
-          The evaluator has graded {state.gradeStats.accepted} of {state.gradeStats.attempted}{" "}
+          The evaluator has graded {state.gradeStats.accepted + state.gradeStats.clean} of{" "}
+          {state.gradeStats.attempted}{" "}
           answers
           {state.gradeStats.rejected > 0 && (
             <> and declined {state.gradeStats.rejected} it could not back with a quote</>

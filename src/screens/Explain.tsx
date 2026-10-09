@@ -16,6 +16,20 @@ type Phase = "idle" | "countdown" | "running" | "paused";
 
 const COUNTDOWN_SECONDS = 3;
 
+function speechErrorMessage(error: string): string {
+  switch (error) {
+    case "network":
+      return "This browser could not reach its speech service. Brave, Opera, and Electron expose the API without a working service — use Chrome or Edge, or type your answer on the next screen.";
+    case "not-allowed":
+    case "service-not-allowed":
+      return "Speech recognition is blocked. Allow the microphone for this site, or type your answer on the next screen.";
+    case "audio-capture":
+      return "No microphone was found for speech recognition. Type your answer on the next screen.";
+    default:
+      return "Speech recognition dropped out. You can fix the text on the next screen.";
+  }
+}
+
 export default function Explain() {
   const { topicId = "" } = useParams();
   const navigate = useNavigate();
@@ -91,7 +105,7 @@ export default function Explain() {
     if (isTranscriptionSupported()) {
       transcriptRef.current = startLiveTranscript({
         onUpdate: setLiveText,
-        onError: () => setMicError("Speech recognition dropped out. You can fix the text on the next screen."),
+        onError: (error) => setMicError(speechErrorMessage(error)),
       });
     } else {
       setMicError(

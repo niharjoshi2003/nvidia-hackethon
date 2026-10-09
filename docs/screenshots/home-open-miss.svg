@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0f172a"/>
+  <text x="32" y="48" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="14">Home  open miss leads plan (placeholder)</text>
+  <rect x="32" y="72" width="576" height="64" rx="8" fill="#14532d" stroke="#4ade80"/>
+  <text x="48" y="112" fill="#dcfce7" font-family="system-ui,sans-serif" font-size="14">Today: topic with open miss · skipped idempotency</text>
+</svg>

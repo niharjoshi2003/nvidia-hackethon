@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0f172a"/>
+  <text x="32" y="48" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="14">Debrief  graded miss (placeholder)</text>
+  <rect x="32" y="72" width="576" height="80" rx="8" fill="#1e293b"/>
+  <text x="48" y="108" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="13">Quote: &retry with exponential backoff&</text>
+  <text x="48" y="132" fill="#38bdf8" font-family="system-ui,sans-serif" font-size="12">Rubric line cited verbatim</text>
+</svg>

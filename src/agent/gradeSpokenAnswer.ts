@@ -19,7 +19,7 @@ import {
   type OutboundCall,
   type Topic,
 } from "@/types";
-import { validateCoverage, validateJudgment } from "./gradeSchema";
+import { validateCoverage, validateJudgment, validateNoMiss } from "./gradeSchema";
 import { wordCount } from "@/lib/text";
 
 /** Below this, there is nothing to grade and the judgment call is not made. */
@@ -99,13 +99,29 @@ export async function gradeSpokenAnswer(input: GradeInput): Promise<GradeOutcome
   // 3. The gate. A judgment that cannot cite the speaker's words and one of
   //    the rubric lines we sent does not become a miss.
   const supplied = rubricLines(topic);
+  const coverage = validateCoverage(payload.coverage, topic.scaffold.keyPoints, transcript);
+
+  const noMiss = validateNoMiss(payload.judgment, coverage, topic.scaffold.keyPoints, supplied);
+  if (noMiss) {
+    if (!noMiss.ok) {
+      return { status: "rejected", reason: noMiss.reason, detail: noMiss.detail, calls: payload.calls };
+    }
+    return {
+      status: "clean",
+      coverage: {
+        covered: [...new Set([...coverage.covered, ...noMiss.coveredRubricLines])],
+        skipped: [],
+      },
+      models: payload.models,
+      calls: payload.calls,
+    };
+  }
+
   const gated = validateJudgment(payload.judgment, transcript, supplied);
 
   if (!gated.ok) {
     return { status: "rejected", reason: gated.reason, detail: gated.detail, calls: payload.calls };
   }
-
-  const coverage = validateCoverage(payload.coverage, topic.scaffold.keyPoints);
 
   return {
     status: "graded",

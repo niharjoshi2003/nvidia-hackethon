@@ -78,14 +78,17 @@ const TRANSCRIPT =
 
 const NANO_SYSTEM =
   "You classify which rubric key points a spoken answer covered. " +
-  "Return JSON with exactly two fields: covered and skipped, both arrays of strings. " +
-  "Every string MUST be copied verbatim from the supplied key points. " +
-  "Do not invent, merge, paraphrase, or add points.";
+  "Return JSON with one field, items: one entry per supplied key point, each with " +
+  "point, status, and evidence. point MUST be copied verbatim from the supplied key points. " +
+  'status is exactly "covered" or "skipped". When covered, evidence MUST be a short fragment ' +
+  "copied verbatim from the transcript that states that point. When skipped, evidence is empty. " +
+  "A point is covered only when the transcript states that point's own idea. " +
+  "Do not invent, merge, or rewrite points. Every supplied key point appears exactly once.";
 
 const nanoUser = () =>
   `KEY POINTS:\n${RUBRIC.keyPoints.map((p) => `- ${p}`).join("\n")}\n\n` +
   `TRANSCRIPT:\n${TRANSCRIPT}\n\n` +
-  `Return JSON: {"covered": string[], "skipped": string[]}`;
+  `Return JSON: {"items":[{"point": string, "status": "covered" | "skipped", "evidence": string}]}`;
 
 const ULTRA_SYSTEM =
   "You name the single most important thing a spoken answer missed. " +
@@ -128,18 +131,21 @@ async function api(path, init = {}) {
   }
 }
 
-async function chat(model, system, user, { jsonMode }) {
+async function chat(model, system, user, { jsonMode, thinking = true, maxTokens = 4000 }) {
   const started = Date.now();
   const payload = {
     model,
     temperature: 0,
-    max_tokens: 700,
+    max_tokens: maxTokens,
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
     ],
   };
   if (jsonMode) payload.response_format = { type: "json_object" };
+  // Coverage is a classification. Leaving Nemotron's hidden reasoning on both
+  // blew the latency budget and collapsed every label to the same answer.
+  if (!thinking) payload.chat_template_kwargs = { enable_thinking: false };
 
   const { ok, status, body } = await api("/chat/completions", {
     method: "POST",
@@ -186,6 +192,27 @@ function parseLooseJson(text) {
 // --- the gate that makes this project different -----------------------------
 
 const normalize = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Same rule as the browser gate: a covered point needs a real transcript quote. */
+function groundedCoverage(parsed) {
+  const items = Array.isArray(parsed?.items) ? parsed.items : null;
+  if (!items) return { covered: parsed?.covered || [], skipped: parsed?.skipped || [], invented: [] };
+
+  const covered = [];
+  const skipped = [];
+  const invented = [];
+  for (const item of items) {
+    const point = RUBRIC.keyPoints.find((p) => normalize(p) === normalize(item?.point));
+    if (!point) {
+      if (item?.point) invented.push(item.point);
+      continue;
+    }
+    const quote = normalize(item?.evidence);
+    const grounded = String(item?.status).toLowerCase() === "covered" && quote && normalize(TRANSCRIPT).includes(quote);
+    (grounded ? covered : skipped).push(point);
+  }
+  return { covered, skipped, invented };
+}
 
 function checkCitations(miss) {
   const rubricLines = [...RUBRIC.keyPoints, ...RUBRIC.gotchas];
@@ -254,7 +281,11 @@ function pickTiers(nemotron) {
 }
 
 async function probeJsonMode(model) {
-  const withMode = await chat(model, NANO_SYSTEM, nanoUser(), { jsonMode: true });
+  const withMode = await chat(model, NANO_SYSTEM, nanoUser(), {
+    jsonMode: true,
+    thinking: false,
+    maxTokens: 900,
+  });
   if (withMode.ok) {
     const parsed = parseLooseJson(withMode.content);
     return {
@@ -264,7 +295,11 @@ async function probeJsonMode(model) {
       note: parsed ? "json_object honored and parsed" : "accepted but output did not parse",
     };
   }
-  const without = await chat(model, NANO_SYSTEM, nanoUser(), { jsonMode: false });
+  const without = await chat(model, NANO_SYSTEM, nanoUser(), {
+    jsonMode: false,
+    thinking: false,
+    maxTokens: 900,
+  });
   return {
     supported: false,
     parsed: Boolean(parseLooseJson(without.content)),
@@ -289,21 +324,27 @@ async function runGrade(tiers) {
 
   const nano = nanoMode.result.ok
     ? nanoMode.result
-    : await chat(tiers.nano, NANO_SYSTEM, nanoUser(), { jsonMode: useJsonMode });
+    : await chat(tiers.nano, NANO_SYSTEM, nanoUser(), {
+        jsonMode: useJsonMode,
+        thinking: false,
+        maxTokens: 900,
+      });
   if (!nano.ok) {
     console.log(`  Nano FAILED (HTTP ${nano.status}): ${nano.error}`);
     return null;
   }
-  const nanoJson = parseLooseJson(nano.content);
+  const nanoJson = groundedCoverage(parseLooseJson(nano.content));
   console.log(`  Nano  ${tiers.nano}`);
   console.log(`    ${nano.ms} ms, ${tokenSummary(nano.usage)}`);
-  console.log(`    covered: ${(nanoJson?.covered || []).length}, skipped: ${(nanoJson?.skipped || []).length}`);
-  const invented = (nanoJson?.covered || [])
-    .concat(nanoJson?.skipped || [])
-    .filter((s) => !RUBRIC.keyPoints.some((p) => normalize(p) === normalize(s)));
+  console.log(`    covered: ${nanoJson.covered.length}, skipped: ${nanoJson.skipped.length}`);
+  const backoffCovered = nanoJson.covered.some((line) => /backoff/i.test(line));
+  const idempotencySkipped = nanoJson.skipped.some((line) => /idempotency key so a replayed/i.test(line));
   console.log(
-    invented.length
-      ? `    WARNING: ${invented.length} string(s) not copied from the rubric — the verbatim constraint is not holding`
+    `    split (backoff covered, planted idempotency skipped): ${backoffCovered && idempotencySkipped ? "PASS" : "FAIL"}`,
+  );
+  console.log(
+    nanoJson.invented.length
+      ? `    WARNING: ${nanoJson.invented.length} string(s) not copied from the rubric — the verbatim constraint is not holding`
       : `    all strings copied verbatim from the rubric`,
   );
 

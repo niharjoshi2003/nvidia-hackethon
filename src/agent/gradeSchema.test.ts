@@ -140,6 +140,39 @@ describe("validateCoverage", () => {
     expect(result.covered).toEqual([keyPoints[0]]);
   });
 
+  it("counts a point covered only when its evidence occurs in the transcript", () => {
+    const result = validateCoverage(
+      {
+        items: [
+          {
+            point: keyPoints[1],
+            status: "covered",
+            evidence: "exponential backoff with some jitter",
+          },
+          {
+            point: keyPoints[0],
+            status: "covered",
+            evidence: "I definitely mentioned an idempotency key",
+          },
+        ],
+      },
+      keyPoints,
+      TRANSCRIPT,
+    );
+    expect(result.covered).toEqual([keyPoints[1]]);
+    expect(result.skipped).toEqual([keyPoints[0]]);
+  });
+
+  it("treats a covered point with no evidence as skipped", () => {
+    const result = validateCoverage(
+      { items: [{ point: keyPoints[1], status: "covered", evidence: "" }] },
+      keyPoints,
+      TRANSCRIPT,
+    );
+    expect(result.covered).toEqual([]);
+    expect(result.skipped).toEqual([keyPoints[1]]);
+  });
+
   it("degrades to empty rather than throwing on a malformed response", () => {
     expect(validateCoverage("not json at all", keyPoints)).toEqual({
       covered: [],

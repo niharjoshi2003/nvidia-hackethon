@@ -1,0 +1,372 @@
+[
+  {
+    "id": "agentic-tool-retries-complete",
+    "topicId": "agentic-tool-retries",
+    "kind": "complete",
+    "transcript": "A timeout is ambiguous, so the agent cannot assume the write failed. An idempotency key must be generated once per logical operation, not once per attempt. The idempotency key is stored with the result so a replay returns the original response. Exponential backoff with jitter prevents synchronized retry storms across agents. Retriable errors must be distinguished from terminal ones before any retry. Total attempts are bounded and terminal failure is surfaced to the caller.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "agentic-tool-retries-omission",
+    "topicId": "agentic-tool-retries",
+    "kind": "omission",
+    "transcript": "A timeout is ambiguous, so the agent cannot assume the write failed. The idempotency key is stored with the result so a replay returns the original response. Exponential backoff with jitter prevents synchronized retry storms across agents. Retriable errors must be distinguished from terminal ones before any retry. Total attempts are bounded and terminal failure is surfaced to the caller.",
+    "labels": {
+      "a": "An idempotency key must be generated once per logical operation, not once per attempt",
+      "b": "An idempotency key must be generated once per logical operation, not once per attempt"
+    }
+  },
+  {
+    "id": "agentic-tool-schema-design-complete",
+    "topicId": "agentic-tool-schema-design",
+    "kind": "complete",
+    "transcript": "The tool description is prompt surface and must say when not to call it. Constrained types like enums eliminate invalid arguments structurally rather than by instruction. Validation failures should return an actionable message the model can act on, not a stack trace. Overlapping tools cause selection errors, so merge tools that answer the same question. Required parameters should be minimised because each one is a hallucination opportunity. Tool output must be shaped for a model to read, not for a UI to render.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "agentic-tool-schema-design-omission",
+    "topicId": "agentic-tool-schema-design",
+    "kind": "omission",
+    "transcript": "The tool description is prompt surface and must say when not to call it. Validation failures should return an actionable message the model can act on, not a stack trace. Overlapping tools cause selection errors, so merge tools that answer the same question. Required parameters should be minimised because each one is a hallucination opportunity. Tool output must be shaped for a model to read, not for a UI to render.",
+    "labels": {
+      "a": "Constrained types like enums eliminate invalid arguments structurally rather than by instruction",
+      "b": "Constrained types like enums eliminate invalid arguments structurally rather than by instruction"
+    }
+  },
+  {
+    "id": "agentic-context-management-complete",
+    "topicId": "agentic-context-management",
+    "kind": "complete",
+    "transcript": "Tool outputs, not the conversation, are what actually fills a long agent run. The original objective must be re-anchored after every compaction or the agent drifts. Summarisation is lossy and irreversible, so the raw trace belongs in external storage. Retrieval on demand beats carrying everything, because the agent can fetch what it needs. Quality degrades well before the window is technically full. Failed attempts should be compacted into a short lesson rather than dropped or kept whole.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "agentic-context-management-omission",
+    "topicId": "agentic-context-management",
+    "kind": "omission",
+    "transcript": "Tool outputs, not the conversation, are what actually fills a long agent run. Summarisation is lossy and irreversible, so the raw trace belongs in external storage. Retrieval on demand beats carrying everything, because the agent can fetch what it needs. Quality degrades well before the window is technically full. Failed attempts should be compacted into a short lesson rather than dropped or kept whole.",
+    "labels": {
+      "a": "The original objective must be re-anchored after every compaction or the agent drifts",
+      "b": "The original objective must be re-anchored after every compaction or the agent drifts"
+    }
+  },
+  {
+    "id": "agentic-evaluation-complete",
+    "topicId": "agentic-evaluation",
+    "kind": "complete",
+    "transcript": "Assert the end state rather than the exact output when many solution paths are valid. A frozen, version-controlled eval set is what makes two runs comparable at all. An LLM judge needs its own agreement number against human labels before its scores are usable. Inter-rater agreement between humans is the ceiling on any judge's measurable accuracy. Cost and latency belong in the evaluation alongside quality. Failure cases must be added to the eval set as they are found, or the set decays.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "agentic-evaluation-omission",
+    "topicId": "agentic-evaluation",
+    "kind": "omission",
+    "transcript": "Assert the end state rather than the exact output when many solution paths are valid. An LLM judge needs its own agreement number against human labels before its scores are usable. Inter-rater agreement between humans is the ceiling on any judge's measurable accuracy. Cost and latency belong in the evaluation alongside quality. Failure cases must be added to the eval set as they are found, or the set decays.",
+    "labels": {
+      "a": "A frozen, version-controlled eval set is what makes two runs comparable at all",
+      "b": "A frozen, version-controlled eval set is what makes two runs comparable at all"
+    }
+  },
+  {
+    "id": "agentic-human-in-the-loop-complete",
+    "topicId": "agentic-human-in-the-loop",
+    "kind": "complete",
+    "transcript": "Reversibility and blast radius decide what needs approval, not the model's stated confidence. The approval prompt must show the concrete action and its arguments, not a summary. Excessive low-value approvals cause rubber-stamping, which is worse than having no gate. The gate is enforced in the tool layer so the model cannot route around it. Every approved and rejected action is logged for audit and for improving the policy. A rejection must be fed back to the agent as a reason so it can choose differently.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "agentic-human-in-the-loop-omission",
+    "topicId": "agentic-human-in-the-loop",
+    "kind": "omission",
+    "transcript": "Reversibility and blast radius decide what needs approval, not the model's stated confidence. Excessive low-value approvals cause rubber-stamping, which is worse than having no gate. The gate is enforced in the tool layer so the model cannot route around it. Every approved and rejected action is logged for audit and for improving the policy. A rejection must be fed back to the agent as a reason so it can choose differently.",
+    "labels": {
+      "a": "The approval prompt must show the concrete action and its arguments, not a summary",
+      "b": "The approval prompt must show the concrete action and its arguments, not a summary"
+    }
+  },
+  {
+    "id": "sd-idempotent-writes-complete",
+    "topicId": "sd-idempotent-writes",
+    "kind": "complete",
+    "transcript": "The client generates the idempotency key once per logical operation and holds it across retries. The key and the response are persisted atomically with the write, in one transaction. A replay returns the stored original response instead of redoing the work. A uniqueness constraint on the key resolves two concurrent duplicates without a race. Keys need a retention window, and the behaviour after expiry must be defined. A key must be scoped to the caller so one tenant cannot collide with another.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "sd-idempotent-writes-omission",
+    "topicId": "sd-idempotent-writes",
+    "kind": "omission",
+    "transcript": "The client generates the idempotency key once per logical operation and holds it across retries. A replay returns the stored original response instead of redoing the work. A uniqueness constraint on the key resolves two concurrent duplicates without a race. Keys need a retention window, and the behaviour after expiry must be defined. A key must be scoped to the caller so one tenant cannot collide with another.",
+    "labels": {
+      "a": "The key and the response are persisted atomically with the write, in one transaction",
+      "b": "The key and the response are persisted atomically with the write, in one transaction"
+    }
+  },
+  {
+    "id": "sd-cache-invalidation-complete",
+    "topicId": "sd-cache-invalidation",
+    "kind": "complete",
+    "transcript": "Start from a staleness budget stated as a number, because that decides the strategy. A TTL is cheapest and is correct whenever bounded staleness is acceptable. Invalidation on write buys freshness at the cost of consistency between store and cache. An expiring hot key causes a thundering herd unless requests are coalesced. Early or probabilistic refresh keeps a hot key warm without a stampede. Cache failure must degrade to the origin rather than to an error.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "sd-cache-invalidation-omission",
+    "topicId": "sd-cache-invalidation",
+    "kind": "omission",
+    "transcript": "Start from a staleness budget stated as a number, because that decides the strategy. Invalidation on write buys freshness at the cost of consistency between store and cache. An expiring hot key causes a thundering herd unless requests are coalesced. Early or probabilistic refresh keeps a hot key warm without a stampede. Cache failure must degrade to the origin rather than to an error.",
+    "labels": {
+      "a": "A TTL is cheapest and is correct whenever bounded staleness is acceptable",
+      "b": "A TTL is cheapest and is correct whenever bounded staleness is acceptable"
+    }
+  },
+  {
+    "id": "sd-rate-limiting-complete",
+    "topicId": "sd-rate-limiting",
+    "kind": "complete",
+    "transcript": "A token bucket permits controlled bursts while bounding the sustained rate. A fixed window allows double the limit across a window boundary, which a sliding window avoids. Limiter state must be shared across instances or each one enforces its own separate limit. The response must be 429 with Retry-After so a correct client can back off. Requests with very different costs need a spend ceiling, not just a request count. The limiter must fail open or fail closed by explicit decision, not by accident.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "sd-rate-limiting-omission",
+    "topicId": "sd-rate-limiting",
+    "kind": "omission",
+    "transcript": "A token bucket permits controlled bursts while bounding the sustained rate. Limiter state must be shared across instances or each one enforces its own separate limit. The response must be 429 with Retry-After so a correct client can back off. Requests with very different costs need a spend ceiling, not just a request count. The limiter must fail open or fail closed by explicit decision, not by accident.",
+    "labels": {
+      "a": "A fixed window allows double the limit across a window boundary, which a sliding window avoids",
+      "b": "A fixed window allows double the limit across a window boundary, which a sliding window avoids"
+    }
+  },
+  {
+    "id": "sd-queue-delivery-complete",
+    "topicId": "sd-queue-delivery",
+    "kind": "complete",
+    "transcript": "At-least-once means duplicates are normal, so the consumer must be idempotent by design. Exactly-once delivery is unachievable end to end, but exactly-once effects are reachable via deduplication. A permanently failing message needs a dead letter queue or it blocks progress. The visibility timeout must exceed real processing time or a message is redelivered mid-flight. Ordering guarantees usually hold only within a partition, not across the topic. Retry with backoff must be bounded, and the dead letter queue must be monitored.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "sd-queue-delivery-omission",
+    "topicId": "sd-queue-delivery",
+    "kind": "omission",
+    "transcript": "At-least-once means duplicates are normal, so the consumer must be idempotent by design. A permanently failing message needs a dead letter queue or it blocks progress. The visibility timeout must exceed real processing time or a message is redelivered mid-flight. Ordering guarantees usually hold only within a partition, not across the topic. Retry with backoff must be bounded, and the dead letter queue must be monitored.",
+    "labels": {
+      "a": "Exactly-once delivery is unachievable end to end, but exactly-once effects are reachable via deduplication",
+      "b": "Exactly-once delivery is unachievable end to end, but exactly-once effects are reachable via deduplication"
+    }
+  },
+  {
+    "id": "llm-rag-retrieval-quality-complete",
+    "topicId": "llm-rag-retrieval-quality",
+    "kind": "complete",
+    "transcript": "Retrieval and generation must be measured separately because their fixes are unrelated. The first check is whether the correct answer was present in the retrieved chunks at all. If the evidence was retrieved and the answer is still wrong, the failure is generation, not retrieval. The model must be able to abstain when nothing relevant was retrieved. Chunking strategy determines whether a complete answer can ever be retrieved in one piece. Citations that point to retrieved spans make a wrong answer diagnosable instead of mysterious.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "llm-rag-retrieval-quality-omission",
+    "topicId": "llm-rag-retrieval-quality",
+    "kind": "omission",
+    "transcript": "Retrieval and generation must be measured separately because their fixes are unrelated. If the evidence was retrieved and the answer is still wrong, the failure is generation, not retrieval. The model must be able to abstain when nothing relevant was retrieved. Chunking strategy determines whether a complete answer can ever be retrieved in one piece. Citations that point to retrieved spans make a wrong answer diagnosable instead of mysterious.",
+    "labels": {
+      "a": "The first check is whether the correct answer was present in the retrieved chunks at all",
+      "b": "The first check is whether the correct answer was present in the retrieved chunks at all"
+    }
+  },
+  {
+    "id": "llm-structured-output-complete",
+    "topicId": "llm-structured-output",
+    "kind": "complete",
+    "transcript": "Constrained decoding enforces shape during generation and is stronger than instruct-and-retry. A schema validates shape only and tells you nothing about whether values are correct. Semantic checks must test values against the source, not just against the type. A validation failure needs a bounded retry with the specific error fed back. Temperature zero improves determinism but does not guarantee identical output. Enums and closed sets are more reliable than free text wherever the domain allows.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "llm-structured-output-omission",
+    "topicId": "llm-structured-output",
+    "kind": "omission",
+    "transcript": "Constrained decoding enforces shape during generation and is stronger than instruct-and-retry. Semantic checks must test values against the source, not just against the type. A validation failure needs a bounded retry with the specific error fed back. Temperature zero improves determinism but does not guarantee identical output. Enums and closed sets are more reliable than free text wherever the domain allows.",
+    "labels": {
+      "a": "A schema validates shape only and tells you nothing about whether values are correct",
+      "b": "A schema validates shape only and tells you nothing about whether values are correct"
+    }
+  },
+  {
+    "id": "llm-judge-validation-complete",
+    "topicId": "llm-judge-validation",
+    "kind": "complete",
+    "transcript": "The judge must be scored against human labels before its numbers are used for anything. Human inter-rater agreement is the ceiling on measurable judge accuracy. LLM judges show length bias, favouring longer and more confident-sounding answers. Judges favour outputs from their own model family, so self-evaluation is not neutral. Requiring the judge to cite the span it judged makes the score auditable. Position bias in pairwise comparison requires swapping the order and averaging.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "llm-judge-validation-omission",
+    "topicId": "llm-judge-validation",
+    "kind": "omission",
+    "transcript": "The judge must be scored against human labels before its numbers are used for anything. LLM judges show length bias, favouring longer and more confident-sounding answers. Judges favour outputs from their own model family, so self-evaluation is not neutral. Requiring the judge to cite the span it judged makes the score auditable. Position bias in pairwise comparison requires swapping the order and averaging.",
+    "labels": {
+      "a": "Human inter-rater agreement is the ceiling on measurable judge accuracy",
+      "b": "Human inter-rater agreement is the ceiling on measurable judge accuracy"
+    }
+  },
+  {
+    "id": "llm-model-routing-complete",
+    "topicId": "llm-model-routing",
+    "kind": "complete",
+    "transcript": "Mechanical extraction suits the small model and judgment suits the large one. An ablation against each model alone is what justifies the split. A confidence-based cascade requires a confidence signal that is genuinely calibrated. Routing adds latency and an extra failure mode, so it must be measured, not assumed. Cost per successful outcome matters more than cost per call. The small model's output must be constrained so its errors are detectable downstream.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "llm-model-routing-omission",
+    "topicId": "llm-model-routing",
+    "kind": "omission",
+    "transcript": "Mechanical extraction suits the small model and judgment suits the large one. A confidence-based cascade requires a confidence signal that is genuinely calibrated. Routing adds latency and an extra failure mode, so it must be measured, not assumed. Cost per successful outcome matters more than cost per call. The small model's output must be constrained so its errors are detectable downstream.",
+    "labels": {
+      "a": "An ablation against each model alone is what justifies the split",
+      "b": "An ablation against each model alone is what justifies the split"
+    }
+  },
+  {
+    "id": "swe-code-review-complete",
+    "topicId": "swe-code-review",
+    "kind": "complete",
+    "transcript": "Read the intent and the tests before reading the implementation. Separate blocking concerns from preferences and say explicitly which is which. Style questions belong to an automated linter, not to a reviewer's comments. Correctness, security, and irreversible decisions are what justify blocking. A design disagreement at review time means the design conversation happened too late. Ask questions where you are uncertain rather than asserting a fix.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "swe-code-review-omission",
+    "topicId": "swe-code-review",
+    "kind": "omission",
+    "transcript": "Read the intent and the tests before reading the implementation. Style questions belong to an automated linter, not to a reviewer's comments. Correctness, security, and irreversible decisions are what justify blocking. A design disagreement at review time means the design conversation happened too late. Ask questions where you are uncertain rather than asserting a fix.",
+    "labels": {
+      "a": "Separate blocking concerns from preferences and say explicitly which is which",
+      "b": "Separate blocking concerns from preferences and say explicitly which is which"
+    }
+  },
+  {
+    "id": "swe-debugging-production-complete",
+    "topicId": "swe-debugging-production",
+    "kind": "complete",
+    "transcript": "Mitigate first, because stopping harm and finding the cause are separate activities. Characterise the failing population before theorising, since the pattern often names the cause. Form a hypothesis that predicts something specific, then test that prediction. A fix without a reproduction or a known mechanism is a guess and must be treated as one. Intermittent failures concentrate in concurrency, resource exhaustion, and time or ordering assumptions. Confirm the fix with the same metric that showed the problem, over a comparable window.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "swe-debugging-production-omission",
+    "topicId": "swe-debugging-production",
+    "kind": "omission",
+    "transcript": "Mitigate first, because stopping harm and finding the cause are separate activities. Form a hypothesis that predicts something specific, then test that prediction. A fix without a reproduction or a known mechanism is a guess and must be treated as one. Intermittent failures concentrate in concurrency, resource exhaustion, and time or ordering assumptions. Confirm the fix with the same metric that showed the problem, over a comparable window.",
+    "labels": {
+      "a": "Characterise the failing population before theorising, since the pattern often names the cause",
+      "b": "Characterise the failing population before theorising, since the pattern often names the cause"
+    }
+  },
+  {
+    "id": "swe-technical-debt-complete",
+    "topicId": "swe-technical-debt",
+    "kind": "complete",
+    "transcript": "Pay down debt only where it currently costs something measurable. Make the argument in delivery and risk terms rather than in code quality terms. Tie the cost to evidence: incident rate, lead time, or repeated bugs in the same module. Incremental refactoring alongside features is usually safer than a stop-the-world rewrite. Stable code nobody touches carries debt that costs nothing and should be left alone. Define what done looks like, or the refactor expands without end.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "swe-technical-debt-omission",
+    "topicId": "swe-technical-debt",
+    "kind": "omission",
+    "transcript": "Pay down debt only where it currently costs something measurable. Tie the cost to evidence: incident rate, lead time, or repeated bugs in the same module. Incremental refactoring alongside features is usually safer than a stop-the-world rewrite. Stable code nobody touches carries debt that costs nothing and should be left alone. Define what done looks like, or the refactor expands without end.",
+    "labels": {
+      "a": "Make the argument in delivery and risk terms rather than in code quality terms",
+      "b": "Make the argument in delivery and risk terms rather than in code quality terms"
+    }
+  },
+  {
+    "id": "swe-testing-strategy-complete",
+    "topicId": "swe-testing-strategy",
+    "kind": "complete",
+    "transcript": "Rank by consequence of failure and cover the highest-consequence paths first. Characterisation tests pin existing behaviour so a refactor can start safely. Test at a stable boundary, because tests coupled to internals break on every refactor. Coverage percentage measures execution, not assertion, so it is a poor target. A flaky test is worse than no test because it trains the team to ignore failures. One good integration test through the critical path often beats many shallow unit tests.",
+    "labels": {
+      "a": null,
+      "b": null
+    }
+  },
+  {
+    "id": "swe-testing-strategy-omission",
+    "topicId": "swe-testing-strategy",
+    "kind": "omission",
+    "transcript": "Rank by consequence of failure and cover the highest-consequence paths first. Test at a stable boundary, because tests coupled to internals break on every refactor. Coverage percentage measures execution, not assertion, so it is a poor target. A flaky test is worse than no test because it trains the team to ignore failures. One good integration test through the critical path often beats many shallow unit tests.",
+    "labels": {
+      "a": "Characterisation tests pin existing behaviour so a refactor can start safely",
+      "b": "Characterisation tests pin existing behaviour so a refactor can start safely"
+    }
+  },
+  {
+    "id": "agentic-tool-retries-noisy-omission",
+    "topicId": "agentic-tool-retries",
+    "kind": "noisy",
+    "transcript": "A time out is ambiguous, so the agent cannot assume the write failed. The item potency key is stored with the result so a replay returns the original response. Exponential backoff with jitter prevents synchronized retry storms across agents. Retriable errors must be distinguished from terminal ones before any retry. Total attempts are bounded and terminal failure is surfaced to the caller.",
+    "labels": {
+      "a": "An idempotency key must be generated once per logical operation, not once per attempt",
+      "b": "An idempotency key must be generated once per logical operation, not once per attempt"
+    }
+  },
+  {
+    "id": "agentic-tool-schema-design-noisy-omission",
+    "topicId": "agentic-tool-schema-design",
+    "kind": "noisy",
+    "transcript": "The tool description is prompt surface and must say when not to call it. Validation failures should return an actionable message the model can act on, not a stack trace. Overlapping tools cause selection errors, so merge tools that answer the same question. Required parameters should be minimised because each one is a hallucination opportunity. Tool output must be shaped for a model to read, not for a UI to render.",
+    "labels": {
+      "a": "Constrained types like enums eliminate invalid arguments structurally rather than by instruction",
+      "b": "Constrained types like enums eliminate invalid arguments structurally rather than by instruction"
+    }
+  },
+  {
+    "id": "agentic-context-management-noisy-omission",
+    "topicId": "agentic-context-management",
+    "kind": "noisy",
+    "transcript": "Tool outputs, not the conversation, are what actually fills a long agent run. Summarisation is lossy and irreversible, so the raw trace belongs in external storage. Retrieval on demand beats carrying everything, because the agent can fetch what it needs. Quality degrades well before the window is technically full. Failed attempts should be compacted into a short lesson rather than dropped or kept whole.",
+    "labels": {
+      "a": "The original objective must be re-anchored after every compaction or the agent drifts",
+      "b": "The original objective must be re-anchored after every compaction or the agent drifts"
+    }
+  }
+]

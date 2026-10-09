@@ -27,7 +27,7 @@ export function emptyState(): AppState {
     misses: [],
     notes: {},
     importedTopics: [],
-    gradeStats: { attempted: 0, accepted: 0, rejected: 0, failed: 0 },
+    gradeStats: { attempted: 0, accepted: 0, clean: 0, rejected: 0, failed: 0 },
     settings: { ...DEFAULT_SETTINGS },
   };
 }

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0f172a"/>
+  <text x="32" y="48" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="14">Debrief  refusal (placeholder)</text>
+  <rect x="32" y="72" width="576" height="96" rx="8" fill="#422006" stroke="#f59e0b"/>
+  <text x="48" y="108" fill="#fde68a" font-family="system-ui,sans-serif" font-size="13">The evaluator produced a judgment it could not support,</text>
+  <text x="48" y="132" fill="#fde68a" font-family="system-ui,sans-serif" font-size="13">so it was discarded.</text>
+</svg>

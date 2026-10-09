@@ -34,6 +34,7 @@ export default function Progress() {
           <SectionLabel>The evaluator&rsquo;s own record</SectionLabel>
           <div className="flex flex-wrap gap-x-10 gap-y-3">
             <Figure value={stats.accepted} label="grades backed by a quote" />
+            <Figure value={stats.clean} label="complete, nothing invented" />
             <Figure value={stats.rejected} label="declined, could not cite" tone="bad" />
             <Figure value={stats.failed} label="did not run" />
           </div>

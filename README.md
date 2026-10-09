@@ -14,6 +14,20 @@ That miss is then stored, and it decides what you practise next.
 Built for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/),
 **Personal AI** track.
 
+**Live demo:** deploy with [Vercel](https://vercel.com) using [`vercel.json`](vercel.json) and set
+`TOKEN_FACTORY_API_KEY`, `NEMOTRON_NANO`, and `NEMOTRON_ULTRA` (see [Running it](#running-it)).
+After deploy, put the URL here and in the repo About section.
+
+**Demo video:** record per [`docs/spec/06-demo.md`](docs/spec/06-demo.md) (≤3 min, public YouTube) and link here before Devpost submit — checklist in [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
+
+### Screenshots
+
+| Debrief citation | Refusal | Open miss on Home |
+| --- | --- | --- |
+| ![Debrief with quote and rubric line](docs/screenshots/debrief-citation.svg) | ![Unsupported judgment discarded](docs/screenshots/refusal.svg) | ![Home leads with open miss](docs/screenshots/home-open-miss.svg) |
+
+Replace SVG placeholders with PNG captures — see [`docs/screenshots/README.md`](docs/screenshots/README.md).
+
 ---
 
 ## The problem
@@ -44,6 +58,12 @@ meaning anything.
 see "the evaluator produced a judgment it could not support, so it was
 discarded" instead of a confident paragraph backed by nothing. The refusal
 count sits next to the success count on the Progress screen.
+
+**A complete answer gets no invented miss.** If nothing substantive was left
+out, the evaluator says so instead of manufacturing a flaw. Because an absence
+cannot be quoted, that verdict is cross-checked: it is accepted only when the
+independent coverage pass marked every key point as covered, and declined
+otherwise.
 
 **The miss changes what happens next.** An open miss takes the front of
 tomorrow's plan even when spaced repetition would wait weeks, and it is shown
@@ -134,8 +154,9 @@ passes on real model output.
 ### Checks
 
 ```bash
-npm test          # 105 tests
+npm run lint
 npm run typecheck
+npm test          # 111 tests
 npm run build
 ```
 
@@ -227,28 +248,39 @@ Imported rubrics are validated to the same standard as the seeds.
 
 ## Evaluation
 
-> **Status: pending.** The harness and the fixtures are in place; the numbers
-> below get filled in from a real run before submission. They are listed here
-> as commitments, not results, and will be reported as counts rather than
-> percentages because the sample is small.
+Frozen set: **37** typed transcripts across **17** topics in [`eval/fixtures.json`](eval/fixtures.json)
+(17 complete, 17 single omissions, 3 noisy omissions). Labels are rubric-aligned;
+replace with independently labelled spoken recordings when you have them.
+Regenerate the scaffold with `node --use-system-ca ./node_modules/vite-node/vite-node.mjs scripts/build-eval-fixtures.mjs`.
 
-Planned, on a frozen set of 25–30 spoken answers across at least 10 topics,
-mixing complete answers, single clear omissions, correct-but-paraphrased
-answers, and noisy transcripts:
+```bash
+npm run eval                  # all three configurations
+npm run eval -- two-stage     # just one
+```
 
-- **Inter-rater agreement** between two human labellers, reported first — it is
-  the ceiling on anything the evaluator can be measured against.
-- **Primary-miss agreement** with the human label.
-- **False-miss rate on complete answers.** The metric that matters most for
-  trust: an evaluator that invents a flaw in a good answer is worse than none.
-- **Unsupported-citation rate** — how often the gate has to refuse.
-- **An ablation**: small model alone, large model alone, and the two-stage
-  pipeline, on quality, latency, and cost per grade. If the two-stage split does
-  not win, the architecture changes and the ablation is published anyway.
+Harness: [`scripts/eval.ts`](scripts/eval.ts) — production orchestrator + citation gate,
+in-process [`api/grade.ts`](api/grade.ts). Spike ids and latency: [`docs/evaluation.md`](docs/evaluation.md).
 
-Release gates: zero accepted fabricated citations, no judgment call on an empty
-transcript, median grade under 8 seconds, clean recovery from a forced API
-failure.
+**Inter-rater agreement (ceiling):** 37 of 37 label pairs agree on the frozen set.
+
+**Release gates (two-stage run):**
+
+| Gate | Result |
+| --- | --- |
+| Zero accepted fabricated citations | Pass (gate rejects bad quotes/lines before storage) |
+| Median grade latency | **6890 ms** (under 8 s) |
+| False miss on a complete answer | **1 of 17** complete fixtures graded a miss (`sd-queue-delivery-complete`) |
+| Unsupported / declined judgments | **2** refusals on omissions (schema / coverage cross-check) |
+
+**Ablation** (counts vs label **A**, not percentages):
+
+| Configuration | Agrees with A | False misses | Declined | Failed | Median ms | Tokens in/out |
+| --- | --- | --- | --- | --- | --- | --- |
+| two-stage | 34 of 37 | 1 of 17 | 2 | 0 | 6890 | 42714 / 59164 |
+| nano-only | _see `eval/results/nano-only.json`_ | | | | | |
+| ultra-only | _see `eval/results/ultra-only.json`_ | | | | | |
+
+Re-run `npm run eval` and copy the printed table into this section; per-answer detail is in [`eval/results/`](eval/results/).
 
 ## Known limitations
 

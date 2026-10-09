@@ -24,8 +24,8 @@ export function useDailyPlan(): PlanEntry[] {
       planSize: state.settings.planSize,
       now: new Date(),
     });
-    // dayKey is in the dependency list so the plan rolls over at midnight
-    // without a reload.
+    // dayKey is in the dependency list so the first render after midnight
+    // builds the new day's plan instead of reusing yesterday's memo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topics, state.progress, state.misses, state.settings.planSize, dayKey(new Date())]);
 }

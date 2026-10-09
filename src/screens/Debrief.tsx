@@ -40,6 +40,11 @@ export default function Debrief() {
     if (!pending) navigate("/", { replace: true });
   }, [pending, navigate]);
 
+  // Leaving by any route (nav bar, back button) drops the attempt, so the
+  // recording is never kept past this screen. The attempt itself is held in
+  // state above, so StrictMode's simulated remount does not lose it.
+  useEffect(() => () => clearPendingAttempt(), []);
+
   // Grade once. The ref survives StrictMode's remount, so development does not
   // spend two grades on every attempt.
   useEffect(() => {
@@ -220,11 +225,30 @@ function GradeResult({
             ? "It quoted words you did not say."
             : grade.reason === "rubric-line-not-supplied"
               ? "It reworded the rubric instead of citing it."
-              : grade.detail}
+              : grade.reason === "clean-contradicts-coverage"
+                ? "It said nothing was missed, but the first pass could not confirm every key point."
+                : grade.detail}
         </p>
         <p className="mt-2 text-sm text-zinc-500">
           Nothing was stored. You are seeing this instead of a confident paragraph that was not
           backed by anything.
+        </p>
+      </Card>
+    );
+  }
+
+  if (grade.status === "clean") {
+    return (
+      <Card className="border-emerald-500/30 bg-emerald-500/5">
+        <Badge tone="good">Nothing missed</Badge>
+        <p className="mt-2 text-sm text-zinc-200">
+          Both passes agree you covered every key point on this topic&rsquo;s rubric.
+        </p>
+        <p className="mt-1 text-sm text-zinc-500">
+          No miss was invented to fill the space. Any open miss this answer covered is now closed.
+        </p>
+        <p className="mt-3 font-mono text-[11px] text-zinc-500">
+          {grade.models.coverage} and {grade.models.judgment}, on Nebius Token Factory
         </p>
       </Card>
     );

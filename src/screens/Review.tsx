@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   clearPendingAttempt,
   peekPendingAttempt,
-  updatePendingTranscript,
+  setPendingAttempt,
 } from "@/audio/pendingAttempt";
 import { findTopic } from "@/data/topics";
 import { useStore } from "@/hooks/useStore";
@@ -28,13 +28,22 @@ export default function Review() {
   const { state } = useStore();
   const topic = findTopic(topicId, state.importedTopics);
 
-  const pending = peekPendingAttempt();
+  const [pending] = useState(() => peekPendingAttempt());
   const [text, setText] = useState(pending?.transcript ?? "");
+  const advancing = useRef(false);
 
   useEffect(() => {
     // Reached by reload or a direct link, with no attempt in memory.
     if (!pending) navigate(`/explain/${topicId}`, { replace: true });
   }, [pending, navigate, topicId]);
+
+  // Leaving for anywhere but the debrief drops the attempt and its audio.
+  useEffect(
+    () => () => {
+      if (!advancing.current) clearPendingAttempt();
+    },
+    [],
+  );
 
   if (!topic) return <Empty title="That topic is not in the library" />;
   if (!pending) return null;
@@ -43,7 +52,8 @@ export default function Review() {
   const tooShort = words < MIN_WORDS_TO_GRADE;
 
   const proceed = () => {
-    updatePendingTranscript(text.trim());
+    advancing.current = true;
+    setPendingAttempt({ ...pending, transcript: text.trim() });
     navigate(`/debrief/${topic.id}`);
   };
 

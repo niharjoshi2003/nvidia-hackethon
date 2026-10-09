@@ -159,13 +159,14 @@ export interface OutboundCall {
   error?: string;
 }
 
-export type GradeStatus = "graded" | "rejected" | "failed" | "skipped";
+export type GradeStatus = "graded" | "clean" | "rejected" | "failed" | "skipped";
 
 export type GradeRejectionReason =
   | "quote-not-in-transcript"
   | "rubric-line-not-supplied"
   | "schema-invalid"
-  | "category-not-recognised";
+  | "category-not-recognised"
+  | "clean-contradicts-coverage";
 
 export type GradeFailureReason =
   | "unknown-topic"
@@ -191,6 +192,18 @@ export type GradeOutcome =
     }
   | {
       /**
+       * The evaluator found nothing worth flagging, and the coverage pass
+       * independently agreed that no key point was skipped. Forcing a miss on
+       * a complete answer would manufacture exactly the false miss this
+       * project exists to avoid.
+       */
+      status: "clean";
+      coverage: CoverageResult;
+      models: { coverage: string; judgment: string };
+      calls: OutboundCall[];
+    }
+  | {
+      /**
        * The evaluator answered but could not support it. Shown to the user as a
        * refusal rather than hidden: declining to fabricate is the point.
        */
@@ -210,6 +223,8 @@ export type GradeOutcome =
 export interface GradeStats {
   attempted: number;
   accepted: number;
+  /** Graded with no miss, confirmed by both passes. */
+  clean: number;
   rejected: number;
   failed: number;
 }

@@ -27,10 +27,27 @@ import { isQuotedFrom, isSuppliedLine, normalize } from "@/lib/text";
 
 // --- wire shapes ------------------------------------------------------------
 
-/** Cheap pass: which rubric key points did the answer cover? */
+/** Cheap pass, normalised: which rubric key points did the answer cover? */
 export const coverageSchema = z.object({
   covered: z.array(z.string()).max(32),
   skipped: z.array(z.string()).max(32),
+});
+
+/**
+ * What the coverage model actually returns. A "covered" entry counts only when
+ * its evidence is a real fragment of the transcript; the model was marking
+ * every point covered, or every point skipped, when it only had to sort strings.
+ */
+const coverageItemsSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        point: z.string(),
+        status: z.string(),
+        evidence: z.string().optional(),
+      }),
+    )
+    .max(32),
 });
 
 /**
@@ -49,6 +66,12 @@ export const judgmentSchema = z.object({
 });
 
 export type RawJudgment = z.infer<typeof judgmentSchema>;
+
+/** The judgment model's "nothing substantive was missed" answer. */
+export const noMissSchema = z.object({
+  noMiss: z.literal(true),
+  coveredRubricLines: z.array(z.string()).max(32).optional(),
+});
 
 export interface ValidatedJudgment {
   missType: string;
@@ -79,8 +102,45 @@ export interface CoverageValidation {
  * judgment prompt and closes older misses. Dropping unsupported strings keeps
  * one sloppy cheap-pass response from failing an otherwise good grade, and
  * `invented` is kept so the evaluation can report how often it happens.
+ *
+ * The model shape (`items`) is stronger than the normalised arrays: a point
+ * counts as covered only when its evidence quote actually occurs in the
+ * transcript. An unsupported "covered" is treated as skipped, so a complete-
+ * answer verdict cannot be vouched for by a list the model did not ground.
  */
-export function validateCoverage(raw: unknown, keyPoints: readonly string[]): CoverageValidation {
+function coverageFromItems(
+  items: Array<{ point: string; status: string; evidence?: string }>,
+  keyPoints: readonly string[],
+  transcript: string,
+): CoverageValidation {
+  const invented: string[] = [];
+  const covered = new Set<string>();
+  const skipped = new Set<string>();
+
+  for (const item of items) {
+    const point = keyPoints.find((candidate) => normalize(candidate) === normalize(item.point));
+    if (!point) {
+      if (item.point.trim()) invented.push(item.point);
+      continue;
+    }
+    const grounded =
+      normalize(item.status) === "covered" && isQuotedFrom(item.evidence ?? "", transcript);
+    if (grounded) covered.add(point);
+    else skipped.add(point);
+  }
+  for (const point of covered) skipped.delete(point);
+
+  return { covered: [...covered], skipped: [...skipped], invented };
+}
+
+export function validateCoverage(
+  raw: unknown,
+  keyPoints: readonly string[],
+  transcript = "",
+): CoverageValidation {
+  const items = coverageItemsSchema.safeParse(raw);
+  if (items.success) return coverageFromItems(items.data.items, keyPoints, transcript);
+
   const parsed = coverageSchema.safeParse(raw);
   if (!parsed.success) return { covered: [], skipped: [], invented: [] };
 
@@ -175,6 +235,46 @@ export function validateJudgment(
         isSuppliedLine(line, supplied),
       ),
     },
+  };
+}
+
+export type NoMissResult =
+  | { ok: true; coveredRubricLines: string[] }
+  | { ok: false; reason: GradeRejectionReason; detail: string };
+
+/**
+ * Gate for a "no miss" verdict, or null when the response is not one.
+ *
+ * An absence cannot be cited, so it is cross-checked instead: the verdict is
+ * accepted only when the independent coverage pass marked every key point as
+ * covered. An empty or malformed coverage response therefore cannot vouch for
+ * it. Without this, "nothing missed" would be the one claim that bypasses the
+ * gate.
+ */
+export function validateNoMiss(
+  raw: unknown,
+  coverage: CoverageValidation,
+  keyPoints: readonly string[],
+  supplied: readonly string[],
+): NoMissResult | null {
+  const parsed = noMissSchema.safeParse(raw);
+  if (!parsed.success) return null;
+
+  const covered = new Set(coverage.covered.map(normalize));
+  const uncovered = keyPoints.filter((point) => !covered.has(normalize(point)));
+  if (uncovered.length > 0) {
+    return {
+      ok: false,
+      reason: "clean-contradicts-coverage",
+      detail: `the coverage pass did not confirm ${uncovered.length} key point(s)`,
+    };
+  }
+
+  return {
+    ok: true,
+    coveredRubricLines: (parsed.data.coveredRubricLines ?? []).filter((line) =>
+      isSuppliedLine(line, supplied),
+    ),
   };
 }
 
