@@ -16,11 +16,37 @@ export type Track = "agentic" | "system-design" | "llm-core" | "swe";
 
 export type Difficulty = "foundational" | "core" | "advanced";
 
+/** The two roles the coach session asks the candidate to pick. */
+export type RoleTrack = "ai-engineer" | "applied-ai";
+
+/**
+ * How strong the evidence is that this question type is actually assessed.
+ * Official: a company job description or interview guide names the competency.
+ * Reported: a candidate account describes the question type.
+ * Community: a curated open question bank.
+ * None of these mean a named company asked this exact wording.
+ */
+export type SourceLabel = "official" | "reported" | "community";
+
+/** Second-person rubric review. Pending until someone other than the author signs it. */
+export type RubricReview = { status: "pending" } | { status: "reviewed"; reviewer: string };
+
 export const TRACK_LABELS: Record<Track, string> = {
   agentic: "Agentic AI",
   "system-design": "System design",
   "llm-core": "LLM core",
   swe: "Software engineering",
+};
+
+export const ROLE_LABELS: Record<RoleTrack, string> = {
+  "ai-engineer": "AI Engineer",
+  "applied-ai": "Applied AI Engineer",
+};
+
+export const SOURCE_LABELS: Record<SourceLabel, string> = {
+  official: "Official",
+  reported: "Reported",
+  community: "Community",
 };
 
 export interface TopicScaffold {
@@ -47,6 +73,38 @@ export interface Topic {
   scaffold: TopicScaffold;
   /** 'seed' ships with the app, 'imported' came from a user rubric file. */
   source: "seed" | "imported";
+  /**
+   * Role tracks this question is written for. Absent on the older catalog,
+   * which the eval fixtures still grade.
+   */
+  roles?: RoleTrack[];
+  /** Stable tags. A question and its twin share the tags a miss can close on. */
+  competencies?: string[];
+  /** Strength of the source. See SourceLabel. */
+  sourceLabel?: SourceLabel;
+  /** What that source actually says, plus a URL a judge can open. */
+  sourceNote?: string;
+  /** Other question ids that test the same claims under a different framing. */
+  twinIds?: string[];
+  /** Whether a second person has reviewed the rubric. */
+  rubricReview?: RubricReview;
+  /**
+   * What the framing actually asks for, one entry per part. An answer that
+   * never speaks to a part did not answer the question, however good it was.
+   */
+  parts?: string[];
+  /** Two skills the question tests, each with four written levels. */
+  skills?: SkillRubric[];
+}
+
+/**
+ * A skill with four written levels, lowest first. The levels describe what an
+ * answer at that level sounds like, so a model, a human, and the candidate
+ * are all judging against the same words.
+ */
+export interface SkillRubric {
+  name: string;
+  levels: [string, string, string, string];
 }
 
 /**
@@ -149,9 +207,17 @@ export interface SpokenMiss {
 
 export interface OutboundCall {
   at: string;
-  provider: "token-factory";
+  provider: "token-factory" | "replay";
   model: string;
-  purpose: "coverage" | "judgment";
+  purpose:
+    | "coverage"
+    | "judgment"
+    | "lines-nano"
+    | "lines-ultra"
+    | "extract"
+    | "rate-nano"
+    | "rate-ultra"
+    | "repair";
   ms: number;
   ok: boolean;
   promptTokens: number | null;
@@ -175,7 +241,10 @@ export type GradeFailureReason =
   | "timeout"
   | "rate-limited"
   | "quota-reached"
-  | "network-error";
+  | "network-error"
+  | "grade-error"
+  | "extract-error"
+  | "repair-error";
 
 /** What the evaluator believed was covered. Used only to close an older miss. */
 export interface CoverageResult {
@@ -229,6 +298,204 @@ export interface GradeStats {
   failed: number;
 }
 
+// --- parallel grading -------------------------------------------------------
+
+export type GraderId = "nano" | "ultra";
+
+export type LineStatus = "covered" | "missed";
+
+/** One model's verdict on one key point, after the citation gate. */
+export interface LineVerdict {
+  line: string;
+  status: LineStatus;
+  /** Verbatim from the transcript. Always present when covered. */
+  quote: string | null;
+}
+
+export type CombinedStatus = "covered" | "missed" | "disputed";
+
+export interface CombinedLine {
+  line: string;
+  status: CombinedStatus;
+  /** Null when that model's call failed, so only one opinion exists. */
+  nano: LineVerdict | null;
+  ultra: LineVerdict | null;
+}
+
+/** The one miss the results screen leads with. */
+export interface HeadlineMiss {
+  rubricLine: string;
+  quote: string;
+  missType: string;
+  category: MissCategory;
+  plainLanguage: string;
+  from: GraderId;
+}
+
+export type ParallelOutcome =
+  | {
+      status: "graded";
+      lines: CombinedLine[];
+      /** Null when no gated headline landed on a line both models call missed. */
+      headline: HeadlineMiss | null;
+      models: { nano: string | null; ultra: string | null };
+      /** True when one model failed and every line carries a single opinion. */
+      partial: boolean;
+      /** True when the result came from a saved recording, not a live call. */
+      replay: boolean;
+      calls: OutboundCall[];
+    }
+  | { status: "failed"; reason: GradeFailureReason; detail: string; calls: OutboundCall[] }
+  | { status: "skipped"; reason: "empty-transcript"; calls: [] };
+
+// --- rated answers ----------------------------------------------------------
+
+export const RELEVANCE = ["on-question", "related", "off-topic"] as const;
+export type Relevance = (typeof RELEVANCE)[number];
+
+/**
+ * Justified is correct plus the reason or tradeoff, in the candidate's words.
+ * That is the difference interviewers reward, so it is its own label.
+ */
+export const QUALITY = ["wrong", "vague", "correct", "justified"] as const;
+export type Quality = (typeof QUALITY)[number];
+
+export const RELEVANCE_LABELS: Record<Relevance, string> = {
+  "on-question": "On the question",
+  related: "Related",
+  "off-topic": "Off-topic",
+};
+
+export const QUALITY_LABELS: Record<Quality, string> = {
+  wrong: "Wrong",
+  vague: "Vague",
+  correct: "Correct",
+  justified: "Justified",
+};
+
+export type SkillLevel = 1 | 2 | 3 | 4;
+
+/** One point the candidate made: an exact fragment of the transcript. */
+export interface AnswerPoint {
+  id: string;
+  quote: string;
+}
+
+export interface PartRating {
+  part: string;
+  addressed: boolean;
+  /** Verbatim from the transcript. Always present when addressed. */
+  quote: string | null;
+}
+
+export interface PointRating {
+  id: string;
+  relevance: Relevance;
+  quality: Quality;
+  /** A supplied key point, copied exactly, or null. */
+  rubricLine: string | null;
+  reason: string;
+}
+
+export interface SkillRating {
+  skill: string;
+  level: SkillLevel;
+}
+
+/** The one key point to lead with. The quote is the words closest to it. */
+export interface Gap {
+  rubricLine: string;
+  quote: string;
+  missType: string;
+  category: MissCategory;
+  plainLanguage: string;
+}
+
+/** One model's rating after the gate. */
+export interface ModelRating {
+  parts: PartRating[];
+  /** Keyed by point id. A point the model did not rate validly is absent. */
+  points: Record<string, PointRating>;
+  skills: SkillRating[];
+  gap: Gap | null;
+}
+
+export type PartStatus = "addressed" | "not-addressed" | "disputed";
+
+export interface CombinedPart {
+  part: string;
+  status: PartStatus;
+  nano: PartRating | null;
+  ultra: PartRating | null;
+}
+
+export interface CombinedPoint {
+  point: AnswerPoint;
+  /** Set only when every model that answered gave the same label. */
+  relevance: Relevance | null;
+  quality: Quality | null;
+  rubricLine: string | null;
+  disputed: boolean;
+  nano: PointRating | null;
+  ultra: PointRating | null;
+}
+
+export interface CombinedSkill {
+  skill: SkillRubric;
+  nano: SkillLevel | null;
+  ultra: SkillLevel | null;
+}
+
+export type RatedOutcome =
+  | {
+      status: "graded";
+      parts: CombinedPart[];
+      points: CombinedPoint[];
+      skills: CombinedSkill[];
+      /** Null when the models did not name the same gap, or nothing was missing. */
+      gap: (Gap & { from: GraderId }) | null;
+      /** Each model's own gap after the gate. Absent on sessions saved before it was kept. */
+      gaps?: { nano: Gap | null; ultra: Gap | null };
+      /** Key points supported by a point both models rate justified. */
+      supported: string[];
+      models: { extract: string | null; nano: string | null; ultra: string | null };
+      partial: boolean;
+      replay: boolean;
+      calls: OutboundCall[];
+    }
+  | { status: "failed"; reason: GradeFailureReason; detail: string; calls: OutboundCall[] }
+  | { status: "skipped"; reason: "empty-transcript"; calls: [] };
+
+/** The candidate's decision on a disputed line or question part. Stored as a human label. */
+export interface DisputeLabel {
+  id: string;
+  at: string;
+  topicId: string;
+  attemptId: string | null;
+  /** Absent on labels stored before parts existed, which were all rubric lines. */
+  kind?: "line" | "part";
+  line: string;
+  /** For a part, covered means addressed. */
+  decision: LineStatus;
+  nano: LineStatus | null;
+  ultra: LineStatus | null;
+  transcript: string;
+}
+
+// --- interviewer ------------------------------------------------------------
+
+export type InterviewerTool = "pickNextQuestion" | "getRubric" | "pickFollowUp";
+
+export interface TraceEntry {
+  at: string;
+  tool: InterviewerTool;
+  ok: boolean;
+  /** True when the fixed rule ran because the tool failed or returned junk. */
+  fallback: boolean;
+  /** One short line shown in the UI. */
+  reason: string;
+}
+
 // --- scheduling and progress ------------------------------------------------
 
 export interface TopicProgress {
@@ -265,9 +532,11 @@ export interface Settings {
    * quota is exhausted. Forwarded per request and never persisted server side.
    */
   ownApiKey: string;
+  /** Serve saved model responses instead of calling the API. Labelled in the UI. */
+  replayMode: boolean;
 }
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export interface AppState {
   schemaVersion: number;
@@ -279,5 +548,7 @@ export interface AppState {
   /** Topics added through rubric import. */
   importedTopics: Topic[];
   gradeStats: GradeStats;
+  /** Candidate decisions on disputed lines. */
+  labels: DisputeLabel[];
   settings: Settings;
 }

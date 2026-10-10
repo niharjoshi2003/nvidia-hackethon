@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: Settings = {
   timerSeconds: 60,
   planSize: 4,
   ownApiKey: "",
+  replayMode: false,
 };
 
 export function emptyState(): AppState {
@@ -28,6 +29,7 @@ export function emptyState(): AppState {
     notes: {},
     importedTopics: [],
     gradeStats: { attempted: 0, accepted: 0, clean: 0, rejected: 0, failed: 0 },
+    labels: [],
     settings: { ...DEFAULT_SETTINGS },
   };
 }
@@ -40,7 +42,7 @@ export function emptyState(): AppState {
 type Migration = (state: Record<string, unknown>) => Record<string, unknown>;
 
 const MIGRATIONS: Record<number, Migration> = {
-  // 1: (state) => ({ ...state, schemaVersion: 2, newField: [] }),
+  1: (state) => ({ ...state, schemaVersion: 2, labels: [] }),
 };
 
 export function migrate(raw: Record<string, unknown>): AppState {
@@ -77,6 +79,7 @@ function reconcile(state: Record<string, unknown>): AppState {
     notes: asRecord(state.notes),
     importedTopics: asArray(state.importedTopics),
     gradeStats: { ...base.gradeStats, ...asRecord<number>(state.gradeStats) },
+    labels: asArray(state.labels),
     settings: { ...base.settings, ...asRecord<unknown>(state.settings) } as Settings,
   };
 }

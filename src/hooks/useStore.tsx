@@ -13,13 +13,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import {
   type AppState,
   type Attempt,
+  type DisputeLabel,
   type GradeOutcome,
+  type RatedOutcome,
   type SelfRating,
   type Settings,
   type SpokenMiss,
@@ -28,6 +31,7 @@ import {
 import { emptyState, loadState, saveState } from "@/lib/storage";
 import { emptyProgress, nextSchedule } from "@/lib/scheduler";
 import { missesToResolve } from "@/lib/misses";
+import { missesClosedOnTwin } from "@/lib/closure";
 import { allTopics } from "@/data/topics";
 import { uid } from "@/lib/id";
 
@@ -41,11 +45,31 @@ export interface SaveAttemptInput {
   grade: GradeOutcome | null;
 }
 
+export interface SaveCoachRoundInput {
+  topic: Topic;
+  transcript: string;
+  spokenSeconds: number;
+  outcome: RatedOutcome;
+}
+
+export interface CoachRoundResult {
+  attempt: Attempt;
+  miss: SpokenMiss | null;
+  /** Open misses from other questions that this answer closed. */
+  closed: SpokenMiss[];
+}
+
 interface StoreValue {
   state: AppState;
   topics: Topic[];
   /** Records the attempt, updates the schedule, and appends a miss if graded. */
   saveAttempt(input: SaveAttemptInput): { attempt: Attempt; miss: SpokenMiss | null };
+  /**
+   * Records a coach round. Stores the gap as a miss, and closes open misses
+   * only when a justified point supports the line on a different question.
+   */
+  saveCoachRound(input: SaveCoachRoundInput): CoachRoundResult;
+  recordDispute(label: Omit<DisputeLabel, "id" | "at">): void;
   resolveMiss(missId: string): void;
   reopenMiss(missId: string): void;
   setNote(topicId: string, note: string): void;
@@ -59,6 +83,8 @@ const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => loadState());
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     saveState(state);
@@ -128,6 +154,72 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { attempt, miss: created };
   }, []);
 
+  const saveCoachRound = useCallback((input: SaveCoachRoundInput): CoachRoundResult => {
+    const at = new Date().toISOString();
+    const attempt: Attempt = {
+      id: uid("att"),
+      topicId: input.topic.id,
+      at,
+      spokenSeconds: input.spokenSeconds,
+      ratings: { clarity: 3, depth: 3, structure: 3 },
+      note: "Coach session",
+      transcript: input.transcript || null,
+    };
+
+    const { outcome } = input;
+    const graded = outcome.status === "graded" ? outcome : null;
+    const closed = graded
+      ? missesClosedOnTwin(stateRef.current.misses, input.topic, graded.supported)
+      : [];
+    const closing = new Set(closed.map((m) => m.id));
+
+    const miss: SpokenMiss | null = graded?.gap
+      ? {
+          id: uid("miss"),
+          topicId: input.topic.id,
+          attemptId: attempt.id,
+          at,
+          status: "open",
+          missType: graded.gap.missType,
+          category: graded.gap.category,
+          quote: graded.gap.quote,
+          rubricLine: graded.gap.rubricLine,
+          plainLanguage: graded.gap.plainLanguage,
+          models: {
+            coverage: graded.models.nano ?? "none",
+            judgment: graded.models.ultra ?? "none",
+          },
+          calls: graded.calls,
+          resolvedAt: null,
+          resolvedBy: null,
+        }
+      : null;
+
+    setState((prev) => {
+      let misses = prev.misses.map((m) =>
+        closing.has(m.id) && m.status === "open"
+          ? { ...m, status: "resolved" as const, resolvedAt: at, resolvedBy: "later-grade" as const }
+          : m,
+      );
+      if (miss) misses = [...misses, miss];
+      return { ...prev, attempts: [...prev.attempts, attempt], misses };
+    });
+
+    return { attempt, miss, closed };
+  }, []);
+
+  const recordDispute = useCallback((label: Omit<DisputeLabel, "id" | "at">) => {
+    setState((prev) => ({
+      ...prev,
+      labels: [
+        ...prev.labels.filter(
+          (l) => !(l.attemptId === label.attemptId && l.line === label.line && l.topicId === label.topicId),
+        ),
+        { ...label, id: uid("lbl"), at: new Date().toISOString() },
+      ],
+    }));
+  }, []);
+
   const resolveMiss = useCallback((missId: string) => {
     setState((prev) => ({
       ...prev,
@@ -180,6 +272,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       state,
       topics,
       saveAttempt,
+      saveCoachRound,
+      recordDispute,
       resolveMiss,
       reopenMiss,
       setNote,
@@ -192,6 +286,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       state,
       topics,
       saveAttempt,
+      saveCoachRound,
+      recordDispute,
       resolveMiss,
       reopenMiss,
       setNote,

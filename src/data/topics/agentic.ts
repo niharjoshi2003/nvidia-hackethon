@@ -1,4 +1,5 @@
 import type { Topic } from "@/types";
+import { SHARED_CLAIMS } from "./sharedClaims";
 
 /**
  * Rubric authoring rules, applied to every topic in this file:
@@ -17,10 +18,41 @@ export const agenticTopics: Topic[] = [
   {
     id: "agentic-tool-retries",
     track: "agentic",
+    roles: ["ai-engineer", "applied-ai"],
+    competencies: ["idempotency", "bounded-retry"],
+    sourceLabel: "community",
+    sourceNote:
+      "Community. The question bank's tool-use item says tools should be idempotent where possible (Q13, https://github.com/ombharatiya/ai-system-design-guide/blob/main/00-interview-prep/01-question-bank.md). This timeout scenario is the app's existing seed question, not a prompt from a company interview guide.",
+    twinIds: ["agent-safe-tools"],
+    rubricReview: { status: "pending" },
     title: "Retrying tool calls without repeating side effects",
     difficulty: "core",
     framing:
       "Your agent calls a payments API. The call times out. Walk me through what happens next.",
+    parts: [
+      "Say what the agent does right after the payment call times out",
+      "Say how a retry avoids charging the customer twice",
+    ],
+    skills: [
+      {
+        name: "Retry safety",
+        levels: [
+          "Retries the call immediately, assuming the timeout means it failed",
+          "Says the payment might have gone through, with no way to check or guard against it",
+          "Retries with the same idempotency key so a repeat returns the original result",
+          "Uses the same key, says where it is stored and what a replay returns, and separates retriable errors from terminal ones",
+        ],
+      },
+      {
+        name: "Failure handling",
+        levels: [
+          "Retries until the call works",
+          "Limits retries, with no backoff and no reason for the limit",
+          "Bounds attempts in code with backoff and surfaces a final failure",
+          "Bounds attempts with jittered backoff enforced in code, not by the model, and reports what state the payment is in",
+        ],
+      },
+    ],
     interviewQuestions: [
       "How do you retry a tool call that may have already succeeded?",
       "What makes a tool safe for an agent to call twice?",
@@ -35,11 +67,11 @@ export const agenticTopics: Topic[] = [
     scaffold: {
       keyPoints: [
         "A timeout is ambiguous, so the agent cannot assume the write failed",
-        "An idempotency key must be generated once per logical operation, not once per attempt",
+        SHARED_CLAIMS.idempotencyKey,
         "The idempotency key is stored with the result so a replay returns the original response",
         "Exponential backoff with jitter prevents synchronized retry storms across agents",
         "Retriable errors must be distinguished from terminal ones before any retry",
-        "Total attempts are bounded and terminal failure is surfaced to the caller",
+        SHARED_CLAIMS.boundedAttempts,
       ],
       commonGotchas: [
         "Generating a fresh idempotency key on each retry, which defeats the mechanism entirely",

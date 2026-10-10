@@ -1,0 +1,343 @@
+{
+  "source": "authored",
+  "note": "Hand-written responses in the exact wire shape, used until `npm run replay:record` overwrites this file with real model output. The UI shows which one it is.",
+  "recordings": [
+    {
+      "topicId": "rag-production-design",
+      "transcript": "So I would split it into an ingestion pipeline and a query pipeline. On ingestion I chunk along the document structure, headings and sections, so a fact does not get cut in half. At query time I run both keyword search and vector search, because product names match lexically but paraphrased questions need embeddings. Then a reranker takes the top fifty down to maybe eight chunks before the model sees them. I would log ingestion and querying separately too. If answers were wrong I would look at the prompt first and then try a bigger model.",
+      "rate": {
+        "models": {
+          "extract": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+          "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+          "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b"
+        },
+        "extract": {
+          "points": [
+            { "quote": "I would split it into an ingestion pipeline and a query pipeline" },
+            { "quote": "On ingestion I chunk along the document structure, headings and sections, so a fact does not get cut in half" },
+            { "quote": "At query time I run both keyword search and vector search, because product names match lexically but paraphrased questions need embeddings" },
+            { "quote": "a reranker takes the top fifty down to maybe eight chunks before the model sees them" },
+            { "quote": "I would log ingestion and querying separately too" },
+            { "quote": "If answers were wrong I would look at the prompt first and then try a bigger model" }
+          ]
+        },
+        "nano": {
+          "parts": [
+            { "part": "Walk through the architecture of the RAG system", "addressed": true, "quote": "I would split it into an ingestion pipeline and a query pipeline" },
+            { "part": "Say where you would look if the answers were wrong", "addressed": true, "quote": "If answers were wrong I would look at the prompt first" }
+          ],
+          "points": [
+            { "id": "p1", "relevance": "on-question", "quality": "correct", "rubricLine": null, "reason": "Splitting ingestion from query is the right frame, but you did not say what the split buys you." },
+            { "id": "p2", "relevance": "on-question", "quality": "justified", "rubricLine": "Chunk boundaries follow the document structure so one fact is not split into pieces that never retrieve together", "reason": "You chose structure-based chunking and said why: a fact stays in one chunk." },
+            { "id": "p3", "relevance": "on-question", "quality": "justified", "rubricLine": "Lexical and vector search both run because names and paraphrases fail in different ways", "reason": "You ran both searches and named the failure each one covers." },
+            { "id": "p4", "relevance": "on-question", "quality": "justified", "rubricLine": "A reranker narrows a short candidate list before generation so the model reads fewer irrelevant chunks", "reason": "You placed the reranker before generation and gave concrete numbers." },
+            { "id": "p5", "relevance": "on-question", "quality": "correct", "rubricLine": "Ingestion and query are logged as separate stages so a bad index is not mistaken for a bad prompt", "reason": "Separate logging is right; saying what it lets you tell apart would make it justified." },
+            { "id": "p6", "relevance": "on-question", "quality": "wrong", "rubricLine": null, "reason": "Changing the prompt or model first cannot tell you whether retrieval or generation failed." }
+          ],
+          "skills": [
+            { "skill": "Architecture", "level": 3 },
+            { "skill": "Debugging", "level": 1 }
+          ],
+          "gap": {
+            "rubricLine": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed",
+            "quote": "I would look at the prompt first",
+            "category": "missing-mechanism",
+            "missType": "no retrieval-only check",
+            "plainLanguage": "You would start with the prompt, but you never said how you would check retrieval on its own."
+          }
+        },
+        "ultra": {
+          "parts": [
+            { "part": "Walk through the architecture of the RAG system", "addressed": true, "quote": "I would split it into an ingestion pipeline and a query pipeline" },
+            { "part": "Say where you would look if the answers were wrong", "addressed": true, "quote": "If answers were wrong I would look at the prompt first and then try a bigger model" }
+          ],
+          "points": [
+            { "id": "p1", "relevance": "on-question", "quality": "correct", "rubricLine": null, "reason": "The two pipelines are the right frame; you gave no reason for separating them." },
+            { "id": "p2", "relevance": "on-question", "quality": "justified", "rubricLine": "Chunk boundaries follow the document structure so one fact is not split into pieces that never retrieve together", "reason": "Chunking by headings with the reason that facts stay whole is exactly what interviewers want." },
+            { "id": "p3", "relevance": "on-question", "quality": "justified", "rubricLine": "Lexical and vector search both run because names and paraphrases fail in different ways", "reason": "Hybrid search with the reason: names match lexically, paraphrases need embeddings." },
+            { "id": "p4", "relevance": "on-question", "quality": "correct", "rubricLine": "A reranker narrows a short candidate list before generation so the model reads fewer irrelevant chunks", "reason": "Accurate, but you did not say why fewer chunks helps the model." },
+            { "id": "p5", "relevance": "on-question", "quality": "vague", "rubricLine": null, "reason": "You would log stages separately, but not what that lets you diagnose." },
+            { "id": "p6", "relevance": "on-question", "quality": "wrong", "rubricLine": null, "reason": "Tuning the prompt or upgrading the model before checking retrieval treats the symptom, not the cause." }
+          ],
+          "skills": [
+            { "skill": "Architecture", "level": 3 },
+            { "skill": "Debugging", "level": 1 }
+          ],
+          "gap": {
+            "rubricLine": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed",
+            "quote": "If answers were wrong I would look at the prompt first and then try a bigger model",
+            "category": "missing-mechanism",
+            "missType": "no separate retrieval evaluation",
+            "plainLanguage": "When answers go wrong you would change the prompt or the model, but you never said how you would measure retrieval on its own, so you cannot tell which half failed."
+          }
+        }
+      },
+      "parallel": {
+        "models": {
+          "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+          "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b"
+        },
+        "nano": {
+          "lines": [
+            {
+              "line": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed",
+              "status": "missed",
+              "quote": ""
+            },
+            {
+              "line": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see",
+              "status": "covered",
+              "quote": "we filter results by the user's role"
+            },
+            {
+              "line": "Chunk boundaries follow the document structure so one fact is not split into pieces that never retrieve together",
+              "status": "covered",
+              "quote": "I chunk along the document structure, headings and sections, so a fact does not get cut in half"
+            },
+            {
+              "line": "Lexical and vector search both run because names and paraphrases fail in different ways",
+              "status": "covered",
+              "quote": "I run both keyword search and vector search"
+            },
+            {
+              "line": "A reranker narrows a short candidate list before generation so the model reads fewer irrelevant chunks",
+              "status": "covered",
+              "quote": "a reranker takes the top fifty down to maybe eight chunks before the model sees them"
+            },
+            {
+              "line": "Ingestion and query are logged as separate stages so a bad index is not mistaken for a bad prompt",
+              "status": "covered",
+              "quote": "I would log ingestion and querying separately too"
+            }
+          ],
+          "headline": {
+            "rubricLine": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed",
+            "quote": "I would look at the prompt first",
+            "category": "missing-mechanism",
+            "missType": "no retrieval-only check",
+            "plainLanguage": "You would start with the prompt, but you never said how you would check retrieval on its own."
+          }
+        },
+        "ultra": {
+          "lines": [
+            {
+              "line": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed",
+              "status": "missed",
+              "quote": ""
+            },
+            {
+              "line": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see",
+              "status": "missed",
+              "quote": ""
+            },
+            {
+              "line": "Chunk boundaries follow the document structure so one fact is not split into pieces that never retrieve together",
+              "status": "covered",
+              "quote": "I chunk along the document structure, headings and sections, so a fact does not get cut in half"
+            },
+            {
+              "line": "Lexical and vector search both run because names and paraphrases fail in different ways",
+              "status": "covered",
+              "quote": "product names match lexically but paraphrased questions need embeddings"
+            },
+            {
+              "line": "A reranker narrows a short candidate list before generation so the model reads fewer irrelevant chunks",
+              "status": "covered",
+              "quote": "a reranker takes the top fifty down to maybe eight chunks"
+            },
+            {
+              "line": "Ingestion and query are logged as separate stages so a bad index is not mistaken for a bad prompt",
+              "status": "missed",
+              "quote": ""
+            }
+          ],
+          "headline": {
+            "rubricLine": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed",
+            "quote": "If answers were wrong I would look at the prompt first and then try a bigger model",
+            "category": "missing-mechanism",
+            "missType": "no separate retrieval evaluation",
+            "plainLanguage": "When answers go wrong you would change the prompt or the model, but you never said how you would measure retrieval on its own, so you cannot tell which half failed."
+          }
+        }
+      },
+      "repair": {
+        "sentences": [
+          { "text": "So I would split it into an ingestion pipeline and a query pipeline.", "rubricLine": null },
+          { "text": "On ingestion I chunk along the document structure, headings and sections, so a fact does not get cut in half.", "rubricLine": null },
+          { "text": "At query time I run both keyword search and vector search, because product names match lexically but paraphrased questions need embeddings.", "rubricLine": null },
+          { "text": "The user's permissions go into that search query as a filter, so a chunk they are not allowed to see is never retrieved at all.", "rubricLine": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see" },
+          { "text": "Then a reranker takes the top fifty down to maybe eight chunks before the model sees them.", "rubricLine": null },
+          { "text": "I would log ingestion and querying separately too.", "rubricLine": null },
+          { "text": "If answers were wrong I would first score retrieval on its own, with questions labelled with the chunk they need, because one end-to-end score would not tell me whether search or generation failed.", "rubricLine": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed" },
+          { "text": "Our search is basically perfect so this rarely matters.", "rubricLine": null }
+        ]
+      }
+    },
+    {
+      "topicId": "rag-contract-debug",
+      "transcript": "First I would check whether the right clause was even in the retrieved chunks. I would measure retrieval separately from generation, with a set of contract questions and the clause each one needs, because one end to end score would not tell me which half broke. If the clause was retrieved and the answer is still wrong, that is a generation problem, maybe the clause sat at the end of a long context. When search returns nothing relevant the model should say it does not know instead of answering from memory. Every answer would cite the chunk it came from.",
+      "rate": {
+        "models": {
+          "extract": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+          "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+          "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b"
+        },
+        "extract": {
+          "points": [
+            { "quote": "First I would check whether the right clause was even in the retrieved chunks" },
+            { "quote": "I would measure retrieval separately from generation, with a set of contract questions and the clause each one needs, because one end to end score would not tell me which half broke" },
+            { "quote": "If the clause was retrieved and the answer is still wrong, that is a generation problem, maybe the clause sat at the end of a long context" },
+            { "quote": "When search returns nothing relevant the model should say it does not know instead of answering from memory" },
+            { "quote": "Every answer would cite the chunk it came from" }
+          ]
+        },
+        "nano": {
+          "parts": [
+            { "part": "Say how you would find the cause of the wrong contract answers", "addressed": true, "quote": "First I would check whether the right clause was even in the retrieved chunks" },
+            { "part": "Say what has to be true before anyone trusts the tool", "addressed": true, "quote": "Every answer would cite the chunk it came from" }
+          ],
+          "points": [
+            { "id": "p1", "relevance": "on-question", "quality": "correct", "rubricLine": "The first check is whether the correct clause was present in the retrieved chunks at all", "reason": "Starting with whether the clause was retrieved is the right first check." },
+            { "id": "p2", "relevance": "on-question", "quality": "justified", "rubricLine": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed", "reason": "You named a retrieval-only set and why one end-to-end score is not enough." },
+            { "id": "p3", "relevance": "on-question", "quality": "justified", "rubricLine": "If that clause was retrieved and the answer is still wrong, the failure is generation or context order", "reason": "You called it a generation problem and gave a likely cause: position in a long context." },
+            { "id": "p4", "relevance": "on-question", "quality": "justified", "rubricLine": "The model abstains when retrieval returns nothing relevant instead of answering from its own memory", "reason": "Abstaining instead of answering from memory, with the risk it avoids." },
+            { "id": "p5", "relevance": "on-question", "quality": "correct", "rubricLine": "A citation points at the retrieved span so a wrong contract answer can be traced to a specific chunk", "reason": "Citations are right; saying they make a wrong answer traceable would justify it." }
+          ],
+          "skills": [
+            { "skill": "Diagnosis", "level": 4 },
+            { "skill": "Trust", "level": 3 }
+          ],
+          "gap": {
+            "rubricLine": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see",
+            "quote": "Every answer would cite the chunk it came from",
+            "category": "missing-constraint",
+            "missType": "no client access filter",
+            "plainLanguage": "You never said how one client is kept from seeing another client's contract."
+          }
+        },
+        "ultra": {
+          "parts": [
+            { "part": "Say how you would find the cause of the wrong contract answers", "addressed": true, "quote": "check whether the right clause was even in the retrieved chunks" },
+            { "part": "Say what has to be true before anyone trusts the tool", "addressed": false, "quote": "" }
+          ],
+          "points": [
+            { "id": "p1", "relevance": "on-question", "quality": "correct", "rubricLine": "The first check is whether the correct clause was present in the retrieved chunks at all", "reason": "The right first check, stated plainly." },
+            { "id": "p2", "relevance": "on-question", "quality": "justified", "rubricLine": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed", "reason": "A labelled retrieval set with the reason it is needed: one score hides which half broke." },
+            { "id": "p3", "relevance": "on-question", "quality": "justified", "rubricLine": "If that clause was retrieved and the answer is still wrong, the failure is generation or context order", "reason": "Correct branch of the diagnosis, with context position as the mechanism." },
+            { "id": "p4", "relevance": "on-question", "quality": "justified", "rubricLine": "The model abstains when retrieval returns nothing relevant instead of answering from its own memory", "reason": "Abstention with the reason: an answer from memory is untraceable for contracts." },
+            { "id": "p5", "relevance": "on-question", "quality": "correct", "rubricLine": "A citation points at the retrieved span so a wrong contract answer can be traced to a specific chunk", "reason": "Accurate; you did not say what the citation lets a lawyer check." }
+          ],
+          "skills": [
+            { "skill": "Diagnosis", "level": 4 },
+            { "skill": "Trust", "level": 2 }
+          ],
+          "gap": {
+            "rubricLine": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see",
+            "quote": "Every answer would cite the chunk it came from",
+            "category": "missing-constraint",
+            "missType": "no per-client access filter",
+            "plainLanguage": "You traced answers to chunks but never said how one client is kept from seeing another client's contract. That filter belongs in the retrieval query, before any chunk is shown."
+          }
+        }
+      },
+      "parallel": {
+        "models": {
+          "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+          "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b"
+        },
+        "nano": {
+          "lines": [
+            {
+              "line": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed",
+              "status": "covered",
+              "quote": "I would measure retrieval separately from generation"
+            },
+            {
+              "line": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see",
+              "status": "missed",
+              "quote": ""
+            },
+            {
+              "line": "The first check is whether the correct clause was present in the retrieved chunks at all",
+              "status": "covered",
+              "quote": "First I would check whether the right clause was even in the retrieved chunks"
+            },
+            {
+              "line": "If that clause was retrieved and the answer is still wrong, the failure is generation or context order",
+              "status": "covered",
+              "quote": "If the clause was retrieved and the answer is still wrong, that is a generation problem"
+            },
+            {
+              "line": "The model abstains when retrieval returns nothing relevant instead of answering from its own memory",
+              "status": "covered",
+              "quote": "the model should say it does not know instead of answering from memory"
+            },
+            {
+              "line": "A citation points at the retrieved span so a wrong contract answer can be traced to a specific chunk",
+              "status": "covered",
+              "quote": "Every answer would cite the chunk it came from"
+            }
+          ],
+          "headline": {
+            "rubricLine": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see",
+            "quote": "Every answer would cite the chunk it came from",
+            "category": "missing-constraint",
+            "missType": "no client access filter",
+            "plainLanguage": "You never said how one client is kept from seeing another client's contract."
+          }
+        },
+        "ultra": {
+          "lines": [
+            {
+              "line": "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed",
+              "status": "covered",
+              "quote": "one end to end score would not tell me which half broke"
+            },
+            {
+              "line": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see",
+              "status": "missed",
+              "quote": ""
+            },
+            {
+              "line": "The first check is whether the correct clause was present in the retrieved chunks at all",
+              "status": "covered",
+              "quote": "check whether the right clause was even in the retrieved chunks"
+            },
+            {
+              "line": "If that clause was retrieved and the answer is still wrong, the failure is generation or context order",
+              "status": "covered",
+              "quote": "maybe the clause sat at the end of a long context"
+            },
+            {
+              "line": "The model abstains when retrieval returns nothing relevant instead of answering from its own memory",
+              "status": "covered",
+              "quote": "When search returns nothing relevant the model should say it does not know"
+            },
+            {
+              "line": "A citation points at the retrieved span so a wrong contract answer can be traced to a specific chunk",
+              "status": "covered",
+              "quote": "Every answer would cite the chunk it came from"
+            }
+          ],
+          "headline": {
+            "rubricLine": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see",
+            "quote": "Every answer would cite the chunk it came from",
+            "category": "missing-constraint",
+            "missType": "no per-client access filter",
+            "plainLanguage": "You traced answers to chunks but never said how one client is kept from seeing another client's contract. That filter belongs in the retrieval query, before any chunk is shown."
+          }
+        }
+      },
+      "repair": {
+        "sentences": [
+          { "text": "First I would check whether the right clause was even in the retrieved chunks.", "rubricLine": null },
+          { "text": "The search query itself is filtered to the requesting client's contracts, so another client's clause can never be retrieved or shown.", "rubricLine": "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see" },
+          { "text": "I would measure retrieval separately from generation, with a set of contract questions and the clause each one needs, because one end to end score would not tell me which half broke.", "rubricLine": null },
+          { "text": "If the clause was retrieved and the answer is still wrong, that is a generation problem, maybe the clause sat at the end of a long context.", "rubricLine": null },
+          { "text": "When search returns nothing relevant the model should say it does not know instead of answering from memory.", "rubricLine": null },
+          { "text": "Every answer would cite the chunk it came from.", "rubricLine": null }
+        ]
+      }
+    }
+  ]
+}

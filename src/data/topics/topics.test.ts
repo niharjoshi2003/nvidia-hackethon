@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { seedTopics } from "./index";
-import { rubricLines } from "@/types";
+import { coachTopics, seedTopics } from "./index";
+import { ROLE_LABELS, rubricLines, SOURCE_LABELS, type RoleTrack } from "@/types";
 import { normalize } from "@/lib/text";
 
 /**
@@ -51,4 +51,80 @@ describe("seed topic rubrics", () => {
   it("covers every track", () => {
     expect(new Set(seedTopics.map((t) => t.track)).size).toBe(4);
   });
+});
+
+describe("coach questions", () => {
+  const coaches = coachTopics();
+  const byId = new Map(coaches.map((topic) => [topic.id, topic]));
+
+  it("is the eight-question set", () => {
+    expect(coaches).toHaveLength(8);
+    expect(new Set(coaches.map((topic) => topic.id)).size).toBe(8);
+  });
+
+  it("covers both role tracks with enough questions for a session", () => {
+    for (const role of Object.keys(ROLE_LABELS) as RoleTrack[]) {
+      const count = coaches.filter((topic) => topic.roles?.includes(role)).length;
+      expect(count).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it.each(coaches.map((topic) => [topic.id, topic] as const))(
+    "%s has a source, roles, competencies, and a pending or signed review",
+    (_id, topic) => {
+      expect(topic.roles?.length).toBeGreaterThanOrEqual(1);
+      expect(topic.competencies?.length).toBeGreaterThanOrEqual(2);
+      expect(topic.sourceLabel && topic.sourceLabel in SOURCE_LABELS).toBe(true);
+      expect(topic.sourceNote).toMatch(/https:\/\//);
+      expect(topic.rubricReview?.status === "pending" || topic.rubricReview?.status === "reviewed").toBe(
+        true,
+      );
+      if (topic.rubricReview?.status === "reviewed") {
+        expect(topic.rubricReview.reviewer.trim().length).toBeGreaterThan(0);
+      }
+    },
+  );
+
+  it.each(coaches.map((topic) => [topic.id, topic] as const))(
+    "%s lists the parts of its question and two skills with four distinct levels",
+    (_id, topic) => {
+      const parts = topic.parts ?? [];
+      expect(parts.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(parts.map(normalize)).size).toBe(parts.length);
+
+      const skills = topic.skills ?? [];
+      expect(skills).toHaveLength(2);
+      expect(new Set(skills.map((s) => normalize(s.name))).size).toBe(2);
+      for (const skill of skills) {
+        expect(skill.levels).toHaveLength(4);
+        expect(new Set(skill.levels.map(normalize)).size).toBe(4);
+      }
+    },
+  );
+
+  it.each(coaches.map((topic) => [topic.id, topic] as const))(
+    "%s has a twin that shares claims and differs in scenario",
+    (_id, topic) => {
+      expect(topic.twinIds?.length).toBeGreaterThanOrEqual(1);
+      const twinId = topic.twinIds?.[0];
+      const twin = twinId ? byId.get(twinId) : undefined;
+      expect(twin, `${topic.id} twin ${twinId}`).toBeDefined();
+      if (!twin) return;
+
+      expect(twin.twinIds).toContain(topic.id);
+      expect(twin.title).not.toBe(topic.title);
+      expect(normalize(twin.framing)).not.toBe(normalize(topic.framing));
+
+      const mine = new Set(topic.scaffold.keyPoints);
+      const theirs = new Set(twin.scaffold.keyPoints);
+      const shared = [...mine].filter((line) => theirs.has(line));
+      expect(shared.length).toBeGreaterThanOrEqual(2);
+
+      const onlyMine = [...mine].filter((line) => !theirs.has(line));
+      expect(onlyMine.length).toBeGreaterThanOrEqual(3);
+
+      const sharedTags = (topic.competencies ?? []).filter((tag) => twin.competencies?.includes(tag));
+      expect(sharedTags.length).toBeGreaterThanOrEqual(1);
+    },
+  );
 });

@@ -2,9 +2,9 @@ import { Link, useParams } from "react-router-dom";
 import { useStore } from "@/hooks/useStore";
 import { findTopic } from "@/data/topics";
 import { latestOpenMiss } from "@/lib/misses";
-import { TRACK_LABELS } from "@/types";
+import { ROLE_LABELS, SOURCE_LABELS, TRACK_LABELS, type Topic } from "@/types";
 import { MissCard } from "@/components/MissCard";
-import { Button, Card, Empty, PageTitle, SectionLabel } from "@/components/ui";
+import { Badge, Button, Card, Empty, PageTitle, SectionLabel } from "@/components/ui";
 
 export default function Research() {
   const { topicId = "" } = useParams();
@@ -15,10 +15,16 @@ export default function Research() {
 
   const miss = latestOpenMiss(state.misses, topic.id);
   const note = state.notes[topic.id] ?? "";
+  const roles = topic.roles?.map((role) => ROLE_LABELS[role]).join(" · ");
+  const twins = (topic.twinIds ?? [])
+    .map((id) => findTopic(id, state.importedTopics))
+    .filter((twin): twin is Topic => twin !== undefined);
 
   return (
     <div>
-      <PageTitle sub={TRACK_LABELS[topic.track]}>{topic.title}</PageTitle>
+      <PageTitle sub={[TRACK_LABELS[topic.track], roles].filter(Boolean).join(" — ")}>
+        {topic.title}
+      </PageTitle>
 
       {/* Shown before the timer, on purpose. The point of storing a miss is
           that you see it again when it can still change the next answer. */}
@@ -27,6 +33,32 @@ export default function Research() {
           <SectionLabel>Last time, on this topic</SectionLabel>
           <MissCard miss={miss} />
         </div>
+      )}
+
+      {topic.sourceLabel && topic.sourceNote && (
+        <Card className="mb-6">
+          <SectionLabel>Why this question</SectionLabel>
+          <div className="mb-2">
+            <Badge>{SOURCE_LABELS[topic.sourceLabel]}</Badge>
+          </div>
+          <p className="text-sm text-zinc-400">{topic.sourceNote}</p>
+        </Card>
+      )}
+
+      {twins.length > 0 && (
+        <Card className="mb-6">
+          <SectionLabel>Same claims, different question</SectionLabel>
+          <ul className="space-y-2">
+            {twins.map((twin) => (
+              <li key={twin.id}>
+                <Link to={`/research/${twin.id}`} className="text-sm text-zinc-200 hover:text-zinc-50">
+                  {twin.title}
+                </Link>
+                <p className="text-sm text-zinc-500">{twin.framing}</p>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
       <Card className="mb-6">
@@ -39,6 +71,11 @@ export default function Research() {
             </li>
           ))}
         </ul>
+        {topic.competencies && topic.competencies.length > 0 && (
+          <p className="mt-3 text-xs text-zinc-500">
+            {topic.competencies.map((tag) => tag.replace(/-/g, " ")).join(" · ")}
+          </p>
+        )}
       </Card>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">

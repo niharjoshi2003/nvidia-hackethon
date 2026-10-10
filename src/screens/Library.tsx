@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useStore } from "@/hooks/useStore";
 import { latestOpenMiss } from "@/lib/misses";
-import { TRACK_LABELS, type Track } from "@/types";
+import { SOURCE_LABELS, TRACK_LABELS, type Track } from "@/types";
 import { Badge, Button, Card, PageTitle, cx } from "@/components/ui";
 
 const TRACKS = Object.keys(TRACK_LABELS) as Track[];
@@ -64,6 +64,7 @@ export default function Library() {
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-zinc-500">{TRACK_LABELS[topic.track]}</span>
                       {miss && <Badge tone="accent">Open miss</Badge>}
+                      {topic.sourceLabel && <Badge>{SOURCE_LABELS[topic.sourceLabel]}</Badge>}
                       {topic.source === "imported" && <Badge>Imported</Badge>}
                       {attempts > 0 && (
                         <span className="text-xs text-zinc-600">

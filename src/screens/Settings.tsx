@@ -34,7 +34,7 @@ export default function SettingsScreen() {
       <Card className="mb-4">
         <SectionLabel>The drill</SectionLabel>
         <div className="space-y-4">
-          <Field label="Timer">
+          <Field label="Answer time limit">
             <div className="flex gap-1.5">
               {([30, 45, 60, 90] as const).map((n) => (
                 <button
@@ -51,17 +51,9 @@ export default function SettingsScreen() {
               ))}
             </div>
           </Field>
-          <Field label="Topics per day">
-            <input
-              type="range"
-              min={2}
-              max={6}
-              value={settings.planSize}
-              onChange={(e) => updateSettings({ planSize: Number(e.target.value) })}
-              className="w-40 accent-amber-400"
-            />
-            <span className="ml-3 font-mono text-sm text-zinc-400">{settings.planSize}</span>
-          </Field>
+          <p className="text-xs text-zinc-500">
+            Recording stops on its own after {settings.timerSeconds} seconds. Takes effect on the next answer.
+          </p>
         </div>
       </Card>
 
@@ -79,6 +71,23 @@ export default function SettingsScreen() {
           placeholder="Paste a Nebius Token Factory key"
           className="w-full rounded border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
         />
+      </Card>
+
+      <Card className="mb-4">
+        <SectionLabel>Replay mode</SectionLabel>
+        <p className="mb-3 text-sm text-zinc-400">
+          The coach session grades saved answers with saved responses instead of calling the API, so a
+          demo still runs when the API is unreachable. Every replayed result is labelled as a replay.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-zinc-300">
+          <input
+            type="checkbox"
+            checked={settings.replayMode}
+            onChange={(e) => updateSettings({ replayMode: e.target.checked })}
+            className="accent-amber-400"
+          />
+          Use saved responses in the coach session
+        </label>
       </Card>
 
       <Card className="mb-4">

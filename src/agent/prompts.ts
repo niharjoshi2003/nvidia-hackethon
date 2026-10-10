@@ -114,6 +114,172 @@ export function judgmentUser(req: GradeRequest, skipped: string[]): string {
   return sections.join("\n");
 }
 
+// --- parallel: per-line verdicts --------------------------------------------
+
+/** Nano and Ultra both receive exactly this prompt. */
+export const LINES_SYSTEM = [
+  "You grade a spoken interview answer against rubric key points, one verdict per point.",
+  "",
+  "Rules, all mandatory:",
+  "- line MUST be copied character-for-character from the supplied key points.",
+  '- status is exactly "covered" or "missed".',
+  "- When covered, quote MUST be a short fragment copied character-for-character from the",
+  "  transcript where the speaker states that point. A paraphrase in your own words is rejected.",
+  "- When missed, quote is an empty string.",
+  "- A point is covered only when the transcript states that point's own idea. A related word",
+  "  or a neighbouring point is not enough.",
+  "- Every supplied key point appears exactly once.",
+  "",
+  "Also name the single most important missed point as headline, or null if none was missed:",
+  "- headline.rubricLine MUST be one of the key points you marked missed, copied exactly.",
+  "- headline.quote MUST be copied from the transcript: the fragment closest to the gap.",
+  `- headline.category MUST be exactly one of: ${MISS_CATEGORIES.join(", ")}`,
+  "- headline.missType is at most six words. headline.plainLanguage is one or two sentences",
+  "  addressed to the speaker: what they said and what was missing.",
+].join("\n");
+
+export function linesUser(req: Pick<GradeRequest, "transcript" | "keyPoints">): string {
+  return [
+    "KEY POINTS:",
+    bullet(req.keyPoints),
+    "",
+    "TRANSCRIPT OF THE SPOKEN ANSWER:",
+    req.transcript,
+    "",
+    'Return JSON: {"lines":[{"line": string, "status": "covered" | "missed", "quote": string}],',
+    ' "headline": {"rubricLine": string, "quote": string, "category": string, "missType": string,',
+    ' "plainLanguage": string} | null}',
+  ].join("\n");
+}
+
+// --- rated answer: extract points -------------------------------------------
+
+export interface RateRequest {
+  question: string;
+  transcript: string;
+  parts: string[];
+  keyPoints: string[];
+  skills: { name: string; levels: string[] }[];
+}
+
+/**
+ * Speech recognition returns almost no punctuation, so points cannot be split
+ * in code. One call splits them; the gate keeps only exact fragments.
+ */
+export const EXTRACT_SYSTEM = [
+  "You split a spoken interview answer into the separate points the speaker made.",
+  "",
+  "Rules, all mandatory:",
+  "- Each point is one claim, decision, or step, together with any reason the speaker gave for it.",
+  "- quote MUST be copied character-for-character from the transcript. Do not fix grammar,",
+  "  add punctuation, or join words that are not next to each other.",
+  "- Keep the reason with its claim: \"hybrid search because names fail in vector search\" is one point.",
+  "- Skip filler such as \"so\", \"um\", \"I think that's it\".",
+  "- Points do not overlap, and they appear in the order spoken. At most 12 points.",
+].join("\n");
+
+export function extractUser(req: Pick<RateRequest, "transcript">): string {
+  return [
+    "TRANSCRIPT OF THE SPOKEN ANSWER:",
+    req.transcript,
+    "",
+    'Return JSON: {"points":[{"quote": string}]}',
+  ].join("\n");
+}
+
+// --- rated answer: rate -----------------------------------------------------
+
+/** Nano and Ultra both receive exactly this prompt. */
+export const RATE_SYSTEM = [
+  "You rate a spoken interview answer the way a fair, demanding interviewer would.",
+  "You rate what the candidate said. Do not give credit for what they might have meant.",
+  "",
+  "parts: one entry per supplied question part, part copied exactly.",
+  "- addressed is true only when the candidate speaks to that part.",
+  "- When addressed, quote MUST be copied character-for-character from the transcript. Otherwise quote is \"\".",
+  "",
+  "points: one entry per supplied point id.",
+  `- relevance is exactly one of: on-question (answers what was asked), related (true and nearby,`,
+  "  but not what was asked), off-topic.",
+  "- quality is exactly one of:",
+  "  wrong: inaccurate, or would fail in production.",
+  "  vague: names an idea without saying what it does or how.",
+  "  correct: states the idea accurately.",
+  "  justified: correct AND the candidate gives the reason or tradeoff in their own words.",
+  "  A reason you can imagine but the candidate did not say does not make a point justified.",
+  "- rubricLine is the key point this point supports, copied exactly, or null. A point supports a",
+  "  key point only when it states that key point's own idea. A related word is not enough.",
+  "- reason is one sentence, at most 25 words, addressed to the candidate, saying why this label.",
+  "",
+  "skills: one entry per supplied skill, skill copied exactly. level is 1, 2, 3, or 4: the written",
+  "level that best describes the whole answer. Between two levels, pick the lower.",
+  "",
+  "gap: the single key point that would most change an interviewer's judgment and that none of",
+  "your correct or justified points supports. null when every key point is supported.",
+  "- gap.rubricLine MUST be copied exactly from the key points.",
+  "- gap.quote MUST be copied from the transcript: the words closest to the gap.",
+  `- gap.category MUST be exactly one of: ${MISS_CATEGORIES.join(", ")}`,
+  "- gap.missType is at most six words. gap.plainLanguage is one or two sentences addressed to the",
+  "  candidate: what they said and what was missing. No encouragement, no study tips.",
+].join("\n");
+
+export function rateUser(req: RateRequest, points: { id: string; quote: string }[]): string {
+  const skills = req.skills.flatMap((skill) => [
+    `- ${skill.name}`,
+    ...skill.levels.map((level, i) => `    ${i + 1}: ${level}`),
+  ]);
+  return [
+    "QUESTION:",
+    req.question,
+    "",
+    "QUESTION PARTS:",
+    bullet(req.parts),
+    "",
+    "KEY POINTS:",
+    bullet(req.keyPoints),
+    "",
+    "SKILLS AND LEVELS:",
+    ...skills,
+    "",
+    "CANDIDATE'S POINTS, quoted from the transcript:",
+    ...points.map((p) => `${p.id}: "${p.quote}"`),
+    "",
+    "FULL TRANSCRIPT:",
+    req.transcript,
+    "",
+    "Return JSON:",
+    '{"parts":[{"part": string, "addressed": boolean, "quote": string}],',
+    ' "points":[{"id": string, "relevance": string, "quality": string, "rubricLine": string | null, "reason": string}],',
+    ' "skills":[{"skill": string, "level": number}],',
+    ' "gap": {"rubricLine": string, "quote": string, "category": string, "missType": string, "plainLanguage": string} | null}',
+  ].join("\n");
+}
+
+// --- repaired answer --------------------------------------------------------
+
+export const REPAIR_SYSTEM = [
+  "You repair a candidate's spoken interview answer by adding only what it missed.",
+  "",
+  "Rules, all mandatory:",
+  "- Keep the candidate's own sentences, copied exactly, in their original order.",
+  "- Add the fewest sentences needed to cover each missed point, in the candidate's voice.",
+  "- Every sentence you add MUST carry rubricLine: the missed point it covers, copied exactly.",
+  "- Sentences copied from the candidate carry rubricLine: null.",
+  "- Do not add anything that is not one of the missed points. Untagged additions are deleted.",
+].join("\n");
+
+export function repairUser(req: { transcript: string; missedLines: string[] }): string {
+  return [
+    "MISSED POINTS:",
+    bullet(req.missedLines),
+    "",
+    "CANDIDATE'S ANSWER:",
+    req.transcript,
+    "",
+    'Return JSON: {"sentences":[{"text": string, "rubricLine": string | null}]}',
+  ].join("\n");
+}
+
 /**
  * Every line the evaluator is permitted to cite, in the same order they were
  * shown. The gate is handed exactly this array, so a line that was never in

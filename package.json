@@ -14,7 +14,10 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint . --max-warnings 0",
     "spike": "node --use-system-ca scripts/spike-tokenfactory.mjs",
-    "eval": "node --use-system-ca ./node_modules/vite-node/vite-node.mjs scripts/eval.ts"
+    "eval": "node --use-system-ca ./node_modules/vite-node/vite-node.mjs scripts/eval.ts",
+    "eval:coach": "node --use-system-ca ./node_modules/vite-node/vite-node.mjs scripts/eval-coach.ts",
+    "replay:record": "node --use-system-ca ./node_modules/vite-node/vite-node.mjs scripts/record-replay.ts",
+    "evidence:capture": "node scripts/capture-evidence.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -38,6 +41,7 @@
     "eslint-plugin-react-refresh": "^0.4.16",
     "globals": "^15.13.0",
     "jsdom": "^25.0.1",
+    "playwright": "^1.64.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",

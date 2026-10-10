@@ -75,6 +75,59 @@ produce.
 
 ---
 
+## The coach session (AI Engineer and Applied AI Engineer)
+
+`/coach` is a five-minute session built on the same gate. The plan behind it is
+[`docs/spec/08-plan.md`](docs/spec/08-plan.md).
+
+1. **Pick a track.** AI Engineer or Applied AI Engineer.
+2. **The interviewer picks a question** and shows its source label (Official,
+   Reported, or Community). Every choice is a logged tool call with a reason.
+3. **Speak for 60 to 90 seconds**, then fix any mis-heard terms.
+4. **Two opinions, graded in parallel.** Nano and Ultra receive the same
+   transcript, key points, prompt, and output schema. Each returns, per key
+   point, `covered` with a quote or `missed`. A `covered` whose quote is not in
+   the transcript is demoted to missed by code before the two are compared.
+
+   | Nano | Ultra | Shown as |
+   | --- | --- | --- |
+   | covered | covered | Covered |
+   | missed | missed | Missed |
+   | disagree | disagree | **Disputed**: the candidate decides, and the decision is stored as a human label |
+
+   The headline is still **one** miss, and only on a line both models call
+   missed. If one model fails, the other's verdicts are shown and marked as a
+   single opinion.
+5. **The follow-up is a twin**: a different question that tests the same
+   rubric line. A miss closes only when it is covered on a question you have
+   not just been shown the answer to (`src/lib/closure.ts`).
+6. **Repaired answer.** Ultra rewrites your own answer, adding only the missed
+   points. Every added sentence must carry its rubric line, and sentences that
+   are neither yours nor tagged with a missed line are dropped and counted.
+
+**The interviewer agent** (`src/agent/interviewer.ts`) has three tools:
+`pickNextQuestion`, `getRubric`, and `pickFollowUp`. It cannot write rubrics or
+grade. Every result is validated (the question must be in the catalog, a
+follow-up must be a different question, a rubric may only contain that
+question's lines), and a failed or invalid result hands over to a fixed rule,
+oldest open miss first. Open `/coach?failTools=1` to run a whole session with
+every tool forced to fail; the trace shows the fixed rule taking over. The
+shipped policy is rule-based. A model-backed policy plugs in behind the same
+interface and the same validation.
+
+**Replay mode** (Settings, or the button on a failed grade) serves saved
+responses through the same client path, so the gate, combine step, and repair
+tag check still run. Replayed results are labelled on screen. The saved
+responses in [`src/data/replay.json`](src/data/replay.json) are marked
+`authored` (hand-written in the wire format) until `npm run replay:record`
+replaces them with output from a live run, and the label changes with them.
+
+**Accuracy on screen** comes from `eval/results/coach-summary.json`, written by
+`npm run eval:coach`. Until a labelled set has been run, the results screen
+says the figure has not been measured rather than showing a number.
+
+---
+
 ## How Nemotron and Token Factory are used
 
 Grading is two calls, in a fixed order, both to Nebius Token Factory:
@@ -154,8 +207,15 @@ passes on real model output.
 ```bash
 npm run lint
 npm run typecheck
-npm test          # 111 tests
+npm test          # 203 tests
 npm run build
+```
+
+Coach evaluation and replay recording (both need the `.env` values above):
+
+```bash
+npm run eval:coach       # Nano alone, Ultra alone, combined, vs human per-line labels
+npm run replay:record    # replace authored replay responses with a live recording
 ```
 
 ### Using it without the hosted key
@@ -219,7 +279,16 @@ Web Speech ─────► transcript               │                   │
 | --- | --- |
 | `src/agent/gradeSchema.ts` | The citation gate. The core of the project. |
 | `src/agent/gradeSpokenAnswer.ts` | Fixed-order orchestrator, no model-chosen branching. |
-| `src/agent/prompts.ts` | Both prompts. Every instruction has a matching check in the gate. |
+| `src/agent/prompts.ts` | All prompts. Every instruction has a matching check in the gate. |
+| `src/agent/parallelSchema.ts` | Per-line schema, gate on both models, the combine table, the headline rule. |
+| `src/agent/gradeParallel.ts` | Parallel grade orchestrator and endpoint failure mapping. |
+| `src/agent/repairAnswer.ts` | Repaired answer and its tag check. |
+| `src/agent/interviewer.ts` | Three interviewer tools, validation, fixed fallback rule, trace. |
+| `src/agent/replay.ts` | Replay fetch over saved responses. |
+| `src/lib/session.ts` | Five-minute session reducer. |
+| `src/lib/closure.ts` | A miss closes only on a different question. |
+| `src/lib/agreement.ts` | Agreement with human labels, shared by eval and UI. |
+| `src/screens/Coach.tsx` | The coach session screen. |
 | `api/grade.ts` | The only networked code. Holds the credential. |
 | `src/lib/misses.ts` | Miss memory and the cross-topic pattern. |
 | `src/lib/selection.ts` | Where an open miss outranks spaced repetition. |
@@ -279,6 +348,22 @@ in-process [`api/grade.ts`](api/grade.ts). Spike ids and latency: [`docs/evaluat
 | ultra-only | 36 of 37 | 36 of 37 | 0 of 17 | 1 | 0 | 5159 | 42699 / 53377 |
 
 On this rubric-aligned set, **Ultra alone scored higher agreement than the two-stage split** (36 vs 34 agrees-with-A), at lower median latency. We still ship two-stage in production because Nano keeps the coverage pass cheap and separates extraction from judgment; the ablation is reported honestly. Per-answer rows: [`eval/results/`](eval/results/). Re-run: `npm run eval`.
+
+### Coach evaluation
+
+Fixture format: [`eval/coach-fixtures.example.json`](eval/coach-fixtures.example.json).
+Each answer is a natural spoken transcript with **per-line** labels from two
+people, `a` and `b`, made independently before either sees model output. The
+script refuses a fixture that leaves any key point unlabelled. Put the real set
+in `eval/coach-fixtures.json`.
+
+One run grades every answer once and scores three configurations from it: Nano
+alone, Ultra alone, and the combination (where disputed lines count as
+undecided, not as agreement). Human-versus-human agreement is reported first as
+the ceiling. Results: `eval/results/coach-rows.json` and
+`eval/results/coach-summary.json`.
+
+**Not run yet.** No coach numbers are reported until the labelled set exists.
 
 ## Known limitations
 

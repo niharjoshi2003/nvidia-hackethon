@@ -1,0 +1,12 @@
+{
+  "measured": false,
+  "fixturePath": null,
+  "answers": 0,
+  "lines": 0,
+  "humans": null,
+  "models": {
+    "nano": null,
+    "ultra": null,
+    "combined": null
+  }
+}

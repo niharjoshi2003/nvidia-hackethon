@@ -1,0 +1,27 @@
+[
+  {
+    "id": "rag-design-skips-eval-and-access",
+    "topicId": "rag-production-design",
+    "kind": "omission",
+    "source": "example, not a recording",
+    "transcript": "So I would split it into an ingestion pipeline and a query pipeline. On ingestion I chunk along the document structure, headings and sections, so a fact does not get cut in half. At query time I run both keyword search and vector search, because product names match lexically but paraphrased questions need embeddings. Then a reranker takes the top fifty down to maybe eight chunks before the model sees them. I would log ingestion and querying separately too. If answers were wrong I would look at the prompt first and then try a bigger model.",
+    "labels": {
+      "a": {
+        "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed": "missed",
+        "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see": "missed",
+        "Chunk boundaries follow the document structure so one fact is not split into pieces that never retrieve together": "covered",
+        "Lexical and vector search both run because names and paraphrases fail in different ways": "covered",
+        "A reranker narrows a short candidate list before generation so the model reads fewer irrelevant chunks": "covered",
+        "Ingestion and query are logged as separate stages so a bad index is not mistaken for a bad prompt": "missed"
+      },
+      "b": {
+        "Retrieval is evaluated separately from generation because a single end-to-end score hides which half failed": "missed",
+        "Access is enforced in the retrieval query so a caller never receives a chunk they are not allowed to see": "missed",
+        "Chunk boundaries follow the document structure so one fact is not split into pieces that never retrieve together": "covered",
+        "Lexical and vector search both run because names and paraphrases fail in different ways": "covered",
+        "A reranker narrows a short candidate list before generation so the model reads fewer irrelevant chunks": "covered",
+        "Ingestion and query are logged as separate stages so a bad index is not mistaken for a bad prompt": "covered"
+      }
+    }
+  }
+]
