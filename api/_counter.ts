@@ -2,9 +2,9 @@
  * The usage counter: what gets written for one finished interview, and how the
  * totals are read back.
  *
- * Everything stored is a count or a sum. There is no per-person row, no
- * transcript, and no list of what anyone said. The only per-visitor value is a
- * random id inside a Redis set, which is what makes "how many people" a count of
+ * Aggregate counters and the latest 200 pseudonymous session summaries are stored. There is no
+ * transcript or audio. Random browser ids in summaries and a Redis set make
+ * "how many people" a count of
  * distinct browsers rather than a count of interviews.
  *
  * Honest limit, worth saying out loud in the README: the numbers are reported by
@@ -25,6 +25,9 @@ const K = {
   topicScoreSum: "sixty:topic:scoreSum",
   daily: "sixty:daily",
 } as const;
+
+export const RECENT_SESSIONS_KEY = "sixty:recent-sessions";
+export const MAX_RECENT_SESSIONS = 200;
 
 const DAYS = 14;
 
@@ -50,6 +53,8 @@ export async function recordInterview(
 
   const score = interviewScore(e);
   const commands: Command[] = [
+    ["LPUSH", RECENT_SESSIONS_KEY, JSON.stringify({ ...e, receivedAt: now.toISOString() })],
+    ["LTRIM", RECENT_SESSIONS_KEY, 0, MAX_RECENT_SESSIONS - 1],
     ["SADD", K.visitors, e.visitorId],
     ["HINCRBY", K.totals, "interviews", 1],
     ["HINCRBY", K.totals, "answersRated", e.rated],

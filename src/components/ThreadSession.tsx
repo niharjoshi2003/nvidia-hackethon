@@ -420,7 +420,7 @@ export default function ThreadSession({
             />
             <span>
               Add this interview to the public tally. Only the topic, your scores and counts are sent, as a random id.
-              Never your words or your voice.
+              The latest 200 session summaries are kept privately by the site operator. Never your words or your voice.
             </span>
           </label>
         </Card>

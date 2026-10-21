@@ -60,6 +60,7 @@ export function upstashStore(url: string, token: string): Store {
  */
 export function memoryStore(): Store {
   const sets = new Map<string, Set<string>>();
+  const lists = new Map<string, string[]>();
   const hashes = new Map<string, Map<string, string>>();
 
   const hash = (key: string) => {
@@ -71,6 +72,23 @@ export function memoryStore(): Store {
   const run = (cmd: Command): unknown => {
     const [name, key, ...rest] = cmd.map(String);
     switch (name?.toUpperCase()) {
+      case "LPUSH": {
+        const list = lists.get(key!) ?? [];
+        for (const value of rest) list.unshift(value);
+        lists.set(key!, list);
+        return list.length;
+      }
+      case "LTRIM": {
+        const list = lists.get(key!) ?? [];
+        const end = Number(rest[1]);
+        lists.set(key!, list.slice(Number(rest[0]), end === -1 ? undefined : end + 1));
+        return "OK";
+      }
+      case "LRANGE": {
+        const list = lists.get(key!) ?? [];
+        const end = Number(rest[1]);
+        return list.slice(Number(rest[0]), end === -1 ? undefined : end + 1);
+      }
       case "SADD": {
         let s = sets.get(key!);
         if (!s) sets.set(key!, (s = new Set()));

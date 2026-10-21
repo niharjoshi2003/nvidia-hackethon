@@ -5,7 +5,8 @@ import { telemetrySchema, type TelemetryEvent } from "./telemetrySchema";
  * The browser's half of the usage counter.
  *
  * After an interview is finished and saved to local memory, this turns the
- * scorecard into a handful of numbers and posts them. It is fire and forget: if
+ * scorecard into a handful of numbers and posts them. The server retains the latest
+ * 200 session summaries alongside aggregate counts. It is fire and forget: if
  * the visitor is offline, the database is not set up, or they turned counting
  * off, nothing happens and nothing is shown. Counting must never get in the way
  * of the interview.

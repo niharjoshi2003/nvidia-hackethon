@@ -167,6 +167,10 @@ topic id, how many answers were rated, the two models' scores, a verdict band,
 and counts, under a random id made in the browser. It never contains a word of
 your answers, the questions, or audio; the server rejects any extra field. The
 numbers are summed in a Redis database (Upstash) and shown on the Overview page.
+The latest 200 session summaries are also retained privately in Redis under
+`sixty:recent-sessions`, including random browser/session IDs and receipt time.
+Older summaries are trimmed by count, with no time-based expiration. This does
+not sync answer history between devices. See `docs/DEPLOY.md` for setup.
 They are reported by each browser, so the tally is a usage count, not an audit.
 
 One honest caveat, stated in the app as well as here: speech-to-text uses the

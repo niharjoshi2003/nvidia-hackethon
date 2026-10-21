@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import collect from "../../api/collect";
 import stats from "../../api/stats";
-import { emptyStats, interviewScore, readStats, recordInterview } from "../../api/_counter";
+import { emptyStats, interviewScore, readStats, recordInterview, RECENT_SESSIONS_KEY, MAX_RECENT_SESSIONS } from "../../api/_counter";
 import { getStore, memoryStore, upstashStore } from "../../api/_store";
 import { telemetrySchema, type TelemetryEvent } from "./telemetrySchema";
 
@@ -56,6 +56,20 @@ describe("counting", () => {
     const s = await readStats(store, NOW);
     expect(s.interviews).toBe(1);
     expect(s.answersRated).toBe(5);
+  });
+
+  it("keeps only the latest session summaries and does not duplicate retries", async () => {
+    const store = memoryStore();
+    for (let i = 0; i < MAX_RECENT_SESSIONS + 1; i++) {
+      await recordInterview(store, event({ sessionId: `session-${String(i).padStart(4, "0")}` }), NOW);
+    }
+    await recordInterview(store, event({ sessionId: "session-0200" }), NOW);
+    const [raw] = await store.exec([["LRANGE", RECENT_SESSIONS_KEY, 0, -1]]);
+    const rows = raw as string[];
+    expect(rows).toHaveLength(MAX_RECENT_SESSIONS);
+    expect(JSON.parse(rows[0]!)).toEqual({ ...event({ sessionId: "session-0200" }), receivedAt: NOW.toISOString() });
+    expect(JSON.parse(rows.at(-1)!)).toMatchObject({ sessionId: "session-0001" });
+    expect(rows.join("")).not.toContain("transcript");
   });
 
   it("counts people, not interviews", async () => {
