@@ -21,6 +21,7 @@ import {
   type AppState,
   type Attempt,
   type DisputeLabel,
+  type Gap,
   type GradeOutcome,
   type RatedOutcome,
   type SelfRating,
@@ -59,6 +60,18 @@ export interface CoachRoundResult {
   closed: SpokenMiss[];
 }
 
+export interface SaveThreadInput {
+  /** The real topic, not a turn's narrowed view. Misses are stored against it. */
+  topic: Topic;
+  turns: Array<{ transcript: string; spokenSeconds: number }>;
+  /** The one gap the thread ended on, already chosen by the scorecard. Null stores no miss. */
+  gap: Gap | null;
+  /** Models behind that gap, shown on the miss. */
+  models: { nano: string | null; ultra: string | null };
+  /** Lines a point both models rated justified supported, across all turns. */
+  supported: string[];
+}
+
 interface StoreValue {
   state: AppState;
   topics: Topic[];
@@ -69,6 +82,12 @@ interface StoreValue {
    * only when a justified point supports the line on a different question.
    */
   saveCoachRound(input: SaveCoachRoundInput): CoachRoundResult;
+  /**
+   * Records a finished interview thread: one attempt per turn, at most one miss
+   * (the thread's gap), and closes open misses from other questions that a
+   * justified point supported. Call once per thread.
+   */
+  saveThreadResult(input: SaveThreadInput): { miss: SpokenMiss | null; closed: SpokenMiss[] };
   recordDispute(label: Omit<DisputeLabel, "id" | "at">): void;
   resolveMiss(missId: string): void;
   reopenMiss(missId: string): void;
@@ -208,6 +227,55 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { attempt, miss, closed };
   }, []);
 
+  const saveThreadResult = useCallback((input: SaveThreadInput) => {
+    const at = new Date().toISOString();
+    const attempts: Attempt[] = input.turns.map((t) => ({
+      id: uid("att"),
+      topicId: input.topic.id,
+      at,
+      spokenSeconds: t.spokenSeconds,
+      ratings: { clarity: 3, depth: 3, structure: 3 },
+      note: "Interview thread",
+      transcript: t.transcript || null,
+    }));
+
+    // Closed before the new miss is added, and only against other questions, so a
+    // thread cannot close the gap it just raised.
+    const closed = missesClosedOnTwin(stateRef.current.misses, input.topic, input.supported);
+    const closing = new Set(closed.map((m) => m.id));
+
+    const miss: SpokenMiss | null = input.gap
+      ? {
+          id: uid("miss"),
+          topicId: input.topic.id,
+          attemptId: attempts[attempts.length - 1]?.id ?? uid("att"),
+          at,
+          status: "open",
+          missType: input.gap.missType,
+          category: input.gap.category,
+          quote: input.gap.quote,
+          rubricLine: input.gap.rubricLine,
+          plainLanguage: input.gap.plainLanguage,
+          models: { coverage: input.models.nano ?? "none", judgment: input.models.ultra ?? "none" },
+          calls: [],
+          resolvedAt: null,
+          resolvedBy: null,
+        }
+      : null;
+
+    setState((prev) => {
+      let misses = prev.misses.map((m) =>
+        closing.has(m.id) && m.status === "open"
+          ? { ...m, status: "resolved" as const, resolvedAt: at, resolvedBy: "later-grade" as const }
+          : m,
+      );
+      if (miss) misses = [...misses, miss];
+      return { ...prev, attempts: [...prev.attempts, ...attempts], misses };
+    });
+
+    return { miss, closed };
+  }, []);
+
   const recordDispute = useCallback((label: Omit<DisputeLabel, "id" | "at">) => {
     setState((prev) => ({
       ...prev,
@@ -273,6 +341,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       topics,
       saveAttempt,
       saveCoachRound,
+      saveThreadResult,
       recordDispute,
       resolveMiss,
       reopenMiss,
@@ -287,6 +356,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       topics,
       saveAttempt,
       saveCoachRound,
+      saveThreadResult,
       recordDispute,
       resolveMiss,
       reopenMiss,

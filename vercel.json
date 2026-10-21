@@ -5,7 +5,7 @@
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
   "headers": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/(grade|collect)",
       "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
   ]

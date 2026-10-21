@@ -22,17 +22,15 @@ import {
   type ModelVerdict,
   type VerdictBand,
 } from "@/lib/analysis";
+import { UNRECORDED_QUOTE } from "@/lib/summary";
 import { Badge, SectionLabel, SpokenQuote, cx } from "./ui";
 
-type Tab = "verdict" | "compare" | "points" | "keyPoints" | "skills" | "pipeline";
+type Tab = "compare" | "points" | "pipeline";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "verdict", label: "Verdict" },
-  { id: "compare", label: "Nano vs Ultra" },
+  { id: "compare", label: "Model comparison" },
   { id: "points", label: "Point by point" },
-  { id: "keyPoints", label: "Key ideas" },
-  { id: "skills", label: "Skills" },
-  { id: "pipeline", label: "How it ran" },
+  { id: "pipeline", label: "How Nemotron graded this" },
 ];
 
 const BAND_STYLE: Record<VerdictBand, string> = {
@@ -83,16 +81,16 @@ export default function Analysis({
   outcome: GradedOutcome;
   trace: TraceEntry[];
 }) {
-  const [tab, setTab] = useState<Tab>("verdict");
+  const [tab, setTab] = useState<Tab>("compare");
   const analysis = useMemo(() => analyse(topic, outcome), [topic, outcome]);
 
   return (
     <section className="rounded-lg border border-zinc-800 bg-zinc-900/50">
       <div className="border-b border-zinc-800 px-5 pt-4">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold text-zinc-100">Full analysis</h2>
-          <p className="text-[11px] text-zinc-500">
-            Two Nemotron models, same prompt, rated independently. Every claim below is checked against your words.
+          <h2 className="text-sm font-semibold text-zinc-100">Proof behind the verdict</h2>
+          <p className="text-xs text-zinc-500">
+            NVIDIA Nemotron on Nebius Token Factory · two independent ratings · every quote checked against your words
           </p>
         </div>
         <div role="tablist" className="-mb-px flex gap-1 overflow-x-auto">
@@ -116,11 +114,29 @@ export default function Analysis({
       </div>
 
       <div className="p-5">
-        {tab === "verdict" && <VerdictTab analysis={analysis} />}
-        {tab === "compare" && <CompareTab analysis={analysis} />}
+        {tab === "compare" && (
+          <div className="space-y-6">
+            <CompareTab analysis={analysis} />
+            <details className="rounded-lg border border-zinc-800 bg-zinc-950/30 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-zinc-200">
+                Detailed model score breakdown
+              </summary>
+              <div className="mt-5">
+                <VerdictTab analysis={analysis} />
+              </div>
+            </details>
+            <details className="rounded-lg border border-zinc-800 bg-zinc-950/30 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-zinc-200">
+                Key ideas and written skill levels
+              </summary>
+              <div className="mt-5 space-y-8">
+                <KeyPointsTab analysis={analysis} outcome={outcome} />
+                <SkillsTab outcome={outcome} />
+              </div>
+            </details>
+          </div>
+        )}
         {tab === "points" && <PointsTab outcome={outcome} />}
-        {tab === "keyPoints" && <KeyPointsTab analysis={analysis} outcome={outcome} />}
-        {tab === "skills" && <SkillsTab outcome={outcome} />}
         {tab === "pipeline" && <PipelineTab outcome={outcome} trace={trace} />}
       </div>
     </section>
@@ -134,7 +150,7 @@ function VerdictTab({ analysis }: { analysis: ReturnType<typeof analyse> }) {
   return (
     <div className="space-y-5">
       <div className={cx("rounded-lg border p-4", consensus.band ? BAND_STYLE[consensus.band] : "border-zinc-700")}>
-        <p className="text-[11px] font-medium uppercase tracking-wider opacity-70">Final verdict</p>
+        <p className="text-xs font-medium uppercase tracking-wider opacity-70">Final verdict</p>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <p className="text-2xl font-semibold tracking-tight">{consensus.headline}</p>
           {consensus.agreed && <Badge tone="good">Both models agree</Badge>}
@@ -162,7 +178,7 @@ function VerdictTab({ analysis }: { analysis: ReturnType<typeof analyse> }) {
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-[11px] text-zinc-500">
+        <p className="mt-2 text-xs text-zinc-500">
           Bands: 80+ strong, 60–79 solid, 40–59 developing, below 40 not yet. A parameter that does not apply
           to this question is left out and the weights rescale.
         </p>
@@ -186,11 +202,11 @@ function ModelCard({ verdict }: { verdict: ModelVerdict }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className={cx("text-sm font-semibold", GRADER_ACCENT[verdict.grader])}>{name}</p>
-          <p className="font-mono text-[10px] text-zinc-600">{verdict.model}</p>
+          <p className="font-mono text-xs text-zinc-600">{verdict.model}</p>
         </div>
         <div className="text-right">
           <p className="font-mono text-2xl font-semibold text-zinc-100">{verdict.score}</p>
-          <p className="text-[11px] text-zinc-400">{BAND_LABELS[verdict.band]}</p>
+          <p className="text-xs text-zinc-400">{BAND_LABELS[verdict.band]}</p>
         </div>
       </div>
 
@@ -202,7 +218,7 @@ function ModelCard({ verdict }: { verdict: ModelVerdict }) {
               <span className="font-mono text-zinc-400">{p.score ?? "n/a"}</span>
             </div>
             <Bar value={p.score} band={scoreBand(p.score)} />
-            <p className="mt-0.5 text-[11px] text-zinc-500">{p.detail}</p>
+            <p className="mt-0.5 text-xs text-zinc-500">{p.detail}</p>
           </li>
         ))}
       </ul>
@@ -213,35 +229,35 @@ function ModelCard({ verdict }: { verdict: ModelVerdict }) {
 
       {verdict.strongest && (
         <div className="mt-3">
-          <p className="text-[11px] font-medium text-emerald-300">Best point, in {name}&rsquo;s view</p>
+          <p className="text-xs font-medium text-emerald-300">Best point, in {name}&rsquo;s view</p>
           <div className="mt-1">
             <SpokenQuote>{verdict.strongest.point.quote}</SpokenQuote>
           </div>
           {verdict.strongest.rating.reason && (
-            <p className="mt-1 pl-3 text-[11px] text-zinc-500">{verdict.strongest.rating.reason}</p>
+            <p className="mt-1 pl-3 text-xs text-zinc-500">{verdict.strongest.rating.reason}</p>
           )}
         </div>
       )}
       {verdict.weakest && (
         <div className="mt-3">
-          <p className="text-[11px] font-medium text-rose-300">Weakest point</p>
+          <p className="text-xs font-medium text-rose-300">Weakest point</p>
           <div className="mt-1">
             <SpokenQuote>{verdict.weakest.point.quote}</SpokenQuote>
           </div>
           {verdict.weakest.rating.reason && (
-            <p className="mt-1 pl-3 text-[11px] text-zinc-500">{verdict.weakest.rating.reason}</p>
+            <p className="mt-1 pl-3 text-xs text-zinc-500">{verdict.weakest.rating.reason}</p>
           )}
         </div>
       )}
       <div className="mt-3 border-t border-zinc-800 pt-3">
-        <p className="text-[11px] font-medium text-zinc-400">What {name} says is most missing</p>
+        <p className="text-xs font-medium text-zinc-400">What {name} says is most missing</p>
         {verdict.gap ? (
           <>
             <p className="mt-1 text-xs text-zinc-200">{verdict.gap.rubricLine}</p>
-            <p className="mt-1 text-[11px] text-zinc-500">{verdict.gap.plainLanguage}</p>
+            <p className="mt-1 text-xs text-zinc-500">{verdict.gap.plainLanguage}</p>
           </>
         ) : (
-          <p className="mt-1 text-[11px] text-zinc-500">Nothing, or its pick did not pass the checks.</p>
+          <p className="mt-1 text-xs text-zinc-500">Nothing, or its pick did not pass the checks.</p>
         )}
       </div>
     </div>
@@ -278,7 +294,7 @@ function QualityMix({ mix }: { mix: Record<Quality, number> }) {
           mix[q] > 0 ? <div key={q} className={fill[q]} style={{ width: `${(mix[q] / total) * 100}%` }} /> : null,
         )}
       </div>
-      <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-zinc-500">
+      <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-zinc-500">
         {order.map((q) => (
           <span key={q}>
             {QUALITY_LABELS[q]} {mix[q]}
@@ -377,7 +393,7 @@ function CompareTab({ analysis }: { analysis: ReturnType<typeof analyse> }) {
             ))}
           </ul>
         )}
-        <p className="mt-3 text-[11px] text-zinc-500">
+        <p className="mt-3 text-xs text-zinc-500">
           A split point is not credited in the verdict above. Two models trained differently disagreeing is a signal
           that the point was ambiguous as spoken; say it more directly next time.
         </p>
@@ -389,36 +405,36 @@ function CompareTab({ analysis }: { analysis: ReturnType<typeof analyse> }) {
 function Stat({ label, value, sub, accent }: { label: string; value: string; sub: string; accent?: string }) {
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
-      <p className="text-[11px] text-zinc-500">{label}</p>
+      <p className="text-xs text-zinc-500">{label}</p>
       <p className={cx("mt-1 font-mono text-xl font-semibold", accent ?? "text-zinc-100")}>{value}</p>
-      <p className="text-[11px] text-zinc-500">{sub}</p>
+      <p className="text-xs text-zinc-500">{sub}</p>
     </div>
   );
 }
 
-function OpinionBox({ grader, rating }: { grader: GraderId; rating: PointRating | null }) {
+export function OpinionBox({ grader, rating }: { grader: GraderId; rating: PointRating | null }) {
   return (
     <div className="rounded border border-zinc-800 bg-zinc-950/50 p-2.5">
-      <p className={cx("text-[11px] font-semibold", GRADER_ACCENT[grader])}>{GRADER_LABELS[grader]}</p>
+      <p className={cx("text-xs font-semibold", GRADER_ACCENT[grader])}>{GRADER_LABELS[grader]}</p>
       {rating ? (
         <>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <span className={cx("rounded border px-1.5 py-0.5 text-[10px] font-medium", QUALITY_STYLE[rating.quality])}>
+            <span className={cx("rounded border px-1.5 py-0.5 text-xs font-medium", QUALITY_STYLE[rating.quality])}>
               {QUALITY_LABELS[rating.quality]}
             </span>
-            <span className={cx("text-[10px]", RELEVANCE_STYLE[rating.relevance])}>
+            <span className={cx("text-xs", RELEVANCE_STYLE[rating.relevance])}>
               {RELEVANCE_LABELS[rating.relevance]}
             </span>
           </div>
           {rating.reason && <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">{rating.reason}</p>}
           {rating.rubricLine && (
-            <p className="mt-1.5 text-[11px] text-zinc-500">
+            <p className="mt-1.5 text-xs text-zinc-500">
               Supports: <span className="text-zinc-400">{rating.rubricLine}</span>
             </p>
           )}
         </>
       ) : (
-        <p className="mt-1 text-xs text-zinc-500">No valid rating for this point.</p>
+        <p className="mt-1 text-xs text-zinc-500">This model gave no valid rating for this point.</p>
       )}
     </div>
   );
@@ -428,13 +444,19 @@ function OpinionBox({ grader, rating }: { grader: GraderId; rating: PointRating 
 
 function PointsTab({ outcome }: { outcome: GradedOutcome }) {
   const [onlySplits, setOnlySplits] = useState(false);
-  const points = onlySplits ? outcome.points.filter((p) => p.disputed) : outcome.points;
+  // An archived result can contain rows whose wording was never saved. Those are
+  // counted, not printed: a placeholder looks like a broken product.
+  const unrecorded = outcome.points.filter((p) => p.point.quote === UNRECORDED_QUOTE).length;
+  const shown = outcome.points.filter((p) => p.point.quote !== UNRECORDED_QUOTE);
+  const points = onlySplits ? shown.filter((p) => p.disputed) : shown;
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-400">
           Nano first split your answer into {outcome.points.length} point{outcome.points.length === 1 ? "" : "s"}, each
           an exact fragment of what you said. Then both models labelled every one, and gave a reason.
+          {unrecorded > 0 &&
+            ` ${unrecorded} of these came from an archived run whose wording was not saved, so only the other ${shown.length} are listed.`}
         </p>
         <label className="flex items-center gap-1.5 text-xs text-zinc-400">
           <input
@@ -450,18 +472,18 @@ function PointsTab({ outcome }: { outcome: GradedOutcome }) {
         {points.map((p) => (
           <li key={p.point.id} className="rounded-lg border border-zinc-800 bg-zinc-950/30 p-3">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="font-mono text-[11px] text-zinc-500">{p.point.id}</span>
+              <span className="font-mono text-xs text-zinc-500">{p.point.id}</span>
               {p.disputed ? (
                 <Badge tone="bad">Models disagree</Badge>
               ) : p.quality ? (
-                <span className={cx("rounded border px-1.5 py-0.5 text-[11px] font-medium", QUALITY_STYLE[p.quality])}>
+                <span className={cx("rounded border px-1.5 py-0.5 text-xs font-medium", QUALITY_STYLE[p.quality])}>
                   Agreed: {QUALITY_LABELS[p.quality]}
                 </span>
               ) : (
                 <Badge>One opinion</Badge>
               )}
               {p.relevance && !p.disputed && (
-                <span className={cx("text-[11px]", RELEVANCE_STYLE[p.relevance])}>{RELEVANCE_LABELS[p.relevance]}</span>
+                <span className={cx("text-xs", RELEVANCE_STYLE[p.relevance])}>{RELEVANCE_LABELS[p.relevance]}</span>
               )}
             </div>
             <SpokenQuote>{p.point.quote}</SpokenQuote>
@@ -545,11 +567,11 @@ function KeyPointsTab({ analysis, outcome }: { analysis: ReturnType<typeof analy
                     <span className={cx("font-semibold", GRADER_ACCENT[g])}>{GRADER_LABELS[g]}</span>
                     {cell ? (
                       <>
-                        <span className={cx("rounded border px-1.5 py-0.5 text-[10px]", KEY_STATUS[cell.status].style)}>
+                        <span className={cx("rounded border px-1.5 py-0.5 text-xs", KEY_STATUS[cell.status].style)}>
                           {KEY_STATUS[cell.status].label}
                         </span>
                         {cell.pointIds.length > 0 && (
-                          <span className="font-mono text-[10px] text-zinc-500">from {cell.pointIds.join(", ")}</span>
+                          <span className="font-mono text-xs text-zinc-500">from {cell.pointIds.join(", ")}</span>
                         )}
                       </>
                     ) : (
@@ -564,7 +586,7 @@ function KeyPointsTab({ analysis, outcome }: { analysis: ReturnType<typeof analy
       </ul>
       {outcome.gap && (
         <div className="mt-4 rounded border border-rose-500/30 bg-rose-500/5 p-3">
-          <p className="text-[11px] font-medium text-rose-300">The agreed gap</p>
+          <p className="text-xs font-medium text-rose-300">The agreed gap</p>
           <p className="mt-1 text-sm text-zinc-200">{outcome.gap.rubricLine}</p>
           <div className="mt-2">
             <SpokenQuote>{outcome.gap.quote}</SpokenQuote>
@@ -624,7 +646,7 @@ function SkillsTab({ outcome }: { outcome: GradedOutcome }) {
             })}
           </ol>
           {s.nano !== null && s.ultra !== null && s.nano !== s.ultra && (
-            <p className="mt-1.5 text-[11px] text-amber-300">
+            <p className="mt-1.5 text-xs text-amber-300">
               The models are {Math.abs(s.nano - s.ultra)} level{Math.abs(s.nano - s.ultra) === 1 ? "" : "s"} apart. The
               next level up from the lower reading is what to aim for.
             </p>
@@ -677,7 +699,7 @@ function PipelineTab({ outcome, trace }: { outcome: GradedOutcome; trace: TraceE
                 <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
                   <span className="text-zinc-300">
                     {PURPOSE_LABELS[c.purpose] ?? c.purpose}{" "}
-                    <span className="font-mono text-[10px] text-zinc-600">{c.model}</span>
+                    <span className="font-mono text-xs text-zinc-600">{c.model}</span>
                   </span>
                   <span className={cx("font-mono", c.ok ? "text-zinc-400" : "text-rose-300")}>
                     {c.ok ? `${(c.ms / 1000).toFixed(1)}s` : "failed"}
@@ -690,15 +712,15 @@ function PipelineTab({ outcome, trace }: { outcome: GradedOutcome; trace: TraceE
                   </span>
                 </div>
                 <Bar value={(c.ms / maxMs) * 100} tone={c.ok ? "bg-zinc-500" : "bg-rose-400"} />
-                {c.error && <p className="mt-0.5 text-[11px] text-rose-300">{c.error}</p>}
+                {c.error && <p className="mt-0.5 text-xs text-rose-300">{c.error}</p>}
               </li>
             ))}
           </ul>
-          {tokens > 0 && <p className="mt-2 text-[11px] text-zinc-500">{tokens.toLocaleString()} tokens in total.</p>}
+          {tokens > 0 && <p className="mt-2 text-xs text-zinc-500">{tokens.toLocaleString()} tokens in total.</p>}
         </div>
       )}
 
-      <p className="text-[11px] text-zinc-500">
+      <p className="text-xs text-zinc-500">
         {outcome.replay
           ? "These were saved responses, replayed through the same gate."
           : "Live calls to NVIDIA Nemotron on Nebius Token Factory."}
@@ -707,7 +729,7 @@ function PipelineTab({ outcome, trace }: { outcome: GradedOutcome; trace: TraceE
       {trace.length > 0 && (
         <div>
           <SectionLabel>Why the interviewer asked this</SectionLabel>
-          <ul className="space-y-1 text-[11px]">
+          <ul className="space-y-1 text-xs">
             {trace.map((t, i) => (
               <li key={i} className="flex flex-wrap gap-x-2">
                 <span className={cx("font-mono", t.fallback ? "text-amber-300" : "text-zinc-400")}>{t.tool}</span>

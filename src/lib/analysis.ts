@@ -118,7 +118,7 @@ export function bandFor(score: number): VerdictBand {
   return "not-yet";
 }
 
-const lowerBand = (a: VerdictBand, b: VerdictBand) =>
+export const lowerBand = (a: VerdictBand, b: VerdictBand) =>
   BAND_ORDER.indexOf(a) <= BAND_ORDER.indexOf(b) ? a : b;
 
 // --- one model's verdict ----------------------------------------------------

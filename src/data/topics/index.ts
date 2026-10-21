@@ -1,6 +1,7 @@
 import type { Topic } from "@/types";
 import { agenticTopics } from "./agentic";
 import { interviewTopics } from "./interview";
+import { interviewMoreTopics } from "./interviewMore";
 import { systemDesignTopics } from "./systemDesign";
 import { llmCoreTopics } from "./llmCore";
 import { sweTopics } from "./swe";
@@ -11,11 +12,13 @@ export const seedTopics: Topic[] = [
   ...llmCoreTopics,
   ...sweTopics,
   ...interviewTopics,
+  ...interviewMoreTopics,
 ];
 
 /**
- * The eight coach questions. Seven are new; tool retries already existed.
- * Order follows the content table in the plan, not the catalog order.
+ * The coach questions: the original eight plus three more twin pairs. Ten of
+ * them have an interview thread (see data/threads.ts). The other four stay
+ * single questions and serve as the twins that close a miss.
  */
 export const COACH_TOPIC_IDS = [
   "rag-production-design",
@@ -26,6 +29,12 @@ export const COACH_TOPIC_IDS = [
   "eval-agent-not-call",
   "prod-cost-latency",
   "prod-defend-model",
+  "llm-injection-defense",
+  "llm-extraction-pipeline",
+  "llm-adapt-technique",
+  "llm-small-model-swap",
+  "llm-observability",
+  "llm-release-gate",
 ] as const;
 
 const seedById = new Map(seedTopics.map((t) => [t.id, t]));

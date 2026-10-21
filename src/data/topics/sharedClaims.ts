@@ -20,4 +20,16 @@ export const SHARED_CLAIMS = {
   qualityBar:
     "A cheaper or faster model ships only after it meets the same quality bar on a frozen eval",
   costPerOutcome: "Cost is measured per successful outcome rather than per model call",
+  untrustedText:
+    "Text from users and documents is treated as data and is never allowed to change the instructions or permissions the system runs with",
+  schemaChecked:
+    "Model output is checked by deterministic code against an expected format before anything acts on it",
+  promptBaseline:
+    "A prompt-only baseline is measured on a labelled eval set first so any later technique has a number to beat",
+  failuresDecide:
+    "Failed examples are sorted into missing knowledge or inconsistent behaviour before any technique is chosen",
+  requestTrace:
+    "Every request is logged with its prompt version, model version, retrieved context and cost so one bad answer can be traced",
+  versionedChanges:
+    "Prompts, model versions and retrieval settings are versioned so any change can be compared and rolled back",
 } as const;

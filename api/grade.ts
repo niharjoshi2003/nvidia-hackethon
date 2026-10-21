@@ -319,7 +319,9 @@ export default async function handler(req: Request): Promise<Response> {
   const apiKey = ownKey || process.env.TOKEN_FACTORY_API_KEY;
   if (!apiKey) return json(500, { error: "not-configured" });
 
-  if (!ownKey) {
+  // The shared budget protects the public deployment. Locally the key is yours, so
+  // the limiter would only get in the way of testing. Hosts set NODE_ENV=production.
+  if (!ownKey && process.env.NODE_ENV === "production") {
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||

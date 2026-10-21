@@ -155,11 +155,19 @@ it cannot be quietly skipped by a server that would rather look successful.
 
 ### What leaves your browser
 
-Only the transcript and the current topic's rubric lines.
+For grading: only the transcript and the current topic's rubric lines.
 
 Your audio recording is never uploaded and is discarded when you leave the
 debrief. Attempts, ratings, notes, and the entire miss log live in
-`localStorage`. There is no account and no server-side copy.
+`localStorage`. There is no account and no server-side copy of your answers.
+
+**Public usage tally (optional, on by default, one checkbox to turn off).** When an
+interview finishes, the browser also sends a few numbers to `/api/collect`: the
+topic id, how many answers were rated, the two models' scores, a verdict band,
+and counts, under a random id made in the browser. It never contains a word of
+your answers, the questions, or audio; the server rejects any extra field. The
+numbers are summed in a Redis database (Upstash) and shown on the Overview page.
+They are reported by each browser, so the tally is a usage count, not an audit.
 
 One honest caveat, stated in the app as well as here: speech-to-text uses the
 **browser's** Web Speech API, which in Chrome and Edge streams audio to the

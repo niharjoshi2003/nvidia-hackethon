@@ -36,7 +36,7 @@ export default function EvidenceSample() {
             <p className="text-sm text-zinc-300">
               Archived result from the paste saved on 10 Oct 2026. Verdict, model cards, and the two
               quoted lines are from that result. Seven of the nine points Nano rated were not in the
-              paste; those rows are marked instead of filled in with guessed words.
+              paste, so they are counted but not listed: the app never fills in words nobody said.
             </p>
             <Button size="sm" variant="ghost" onClick={() => setShowNote(false)}>
               Hide
@@ -54,16 +54,8 @@ export default function EvidenceSample() {
         topicTitle={(id) => (id === topic.id ? topic.title : id)}
         canSwitchToReplay={false}
         onSwitchToReplay={() => {}}
+        proofDefaultOpen
       />
-
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button variant="primary" type="button">
-          Next: the follow-up
-        </Button>
-        <Button variant="ghost" type="button">
-          End session
-        </Button>
-      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@
 import { combineParts, combinePoints, combineSkills, pickGap } from "@/agent/rateSchema";
 import { interviewTopics } from "@/data/topics/interview";
 import { SHARED_CLAIMS } from "@/data/topics/sharedClaims";
+import { UNRECORDED_QUOTE } from "@/lib/summary";
 import type { AnswerPoint, Gap, ModelRating, RatedOutcome, Topic } from "@/types";
 
 export const RAG_SAMPLE_TOPIC_ID = "rag-production-design";
@@ -21,7 +22,7 @@ export const BEST_QUOTE = "We will start with the best of injection means ingest
 export const WEAKEST_QUOTE = "Retrieve each question answer accordingly";
 
 /** Not the candidate's words. Present only so the quality count stays at nine. */
-export const UNRECORDED_QUOTE = "[wording not included in the saved sample]";
+export { UNRECORDED_QUOTE };
 
 const CHUNK_BOUNDARIES =
   "Chunk boundaries follow the document structure so one fact is not split into pieces that never retrieve together";
@@ -65,6 +66,7 @@ export function ragProductionOutcome(): Extract<RatedOutcome, { status: "graded"
   const topic = ragProductionTopic();
   const [architecture, debug] = topic.parts ?? [];
   if (!architecture || !debug) throw new Error("RAG topic is missing its two parts");
+  const skills = topic.skills ?? [];
 
   const made = [
     point("p1", BEST_QUOTE, "Mentions retrieval but not evaluation separation."),
@@ -78,7 +80,7 @@ export function ragProductionOutcome(): Extract<RatedOutcome, { status: "graded"
       { part: debug, addressed: true, quote: WEAKEST_QUOTE },
     ],
     points: Object.fromEntries(made.map((p) => [p.answer.id, p.rating])),
-    skills: topic.skills.map((skill) => ({ skill: skill.name, level: 1 as const })),
+    skills: skills.map((skill) => ({ skill: skill.name, level: 1 as const })),
     gap: gap(CHUNK_BOUNDARIES, BEST_QUOTE, NANO_GAP_PLAIN),
   };
 
@@ -88,7 +90,7 @@ export function ragProductionOutcome(): Extract<RatedOutcome, { status: "graded"
       { part: debug, addressed: true, quote: WEAKEST_QUOTE },
     ],
     points: {},
-    skills: topic.skills.map((skill) => ({ skill: skill.name, level: 2 as const })),
+    skills: skills.map((skill) => ({ skill: skill.name, level: 2 as const })),
     gap: gap(SHARED_CLAIMS.retrievalEval, WEAKEST_QUOTE, ULTRA_GAP_PLAIN),
   };
 
@@ -102,7 +104,7 @@ export function ragProductionOutcome(): Extract<RatedOutcome, { status: "graded"
     status: "graded",
     parts: combineParts(topic.parts ?? [], nano, ultra),
     points,
-    skills: combineSkills(topic.skills, nano, ultra),
+    skills: combineSkills(skills, nano, ultra),
     gap: pickGap(points, nano, ultra),
     gaps: { nano: nano.gap, ultra: ultra.gap },
     supported: [],

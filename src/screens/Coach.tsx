@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useStore } from "@/hooks/useStore";
 import { coachTopics } from "@/data/topics";
@@ -10,8 +10,11 @@ import {
   plannedPolicy,
   type InterviewContext,
   type InterviewerPolicy,
+  type QuestionChoice,
 } from "@/agent/interviewer";
 import { buildCoachBrief } from "@/lib/coachBrief";
+import { buildSession, recordSession } from "@/lib/history";
+import { latestOpenMiss, openMisses } from "@/lib/misses";
 import {
   canAskFollowUp,
   currentRound,
@@ -23,12 +26,6 @@ import {
   type Round,
 } from "@/lib/session";
 import {
-  isTranscriptionSupported,
-  startLiveTranscript,
-  type LiveTranscript,
-} from "@/audio/liveTranscript";
-import {
-  ROLE_LABELS,
   SOURCE_LABELS,
   type RatedOutcome,
   type RoleTrack,
@@ -36,8 +33,19 @@ import {
   type Topic,
   type TraceEntry,
 } from "@/types";
-import { Badge, Button, Card, PageTitle, SectionLabel, SpokenQuote } from "@/components/ui";
-import Analysis from "@/components/Analysis";
+import { Badge, Button, Card, cx } from "@/components/ui";
+import AnswerPanel from "@/components/AnswerPanel";
+import GradedResult from "@/components/GradedResult";
+import GradingPanel from "@/components/GradingPanel";
+import Landing, { type InterviewOption } from "@/components/Landing";
+import RepairView from "@/components/RepairView";
+import ThreadSession from "@/components/ThreadSession";
+import { ArrowRightIcon, CheckIcon } from "@/components/icons";
+import { THREADS, threadFor } from "@/data/threads";
+import { loadThread, type SavedThread } from "@/lib/threadStore";
+
+/** The question the sample button opens. It has a saved answer, so no microphone is needed. */
+const SAMPLE_TOPIC_ID = "rag-production-design";
 
 /** Every tool throws, so the fixed rule has to carry the session. `?failTools=1` */
 const failingPolicy: InterviewerPolicy = {
@@ -53,20 +61,62 @@ const failingPolicy: InterviewerPolicy = {
 };
 
 export default function Coach() {
-  const { state, saveCoachRound, updateSettings } = useStore();
+  const { state, topics: allTopics, saveCoachRound, updateSettings } = useStore();
   const [params] = useSearchParams();
   const policy = params.get("failTools") === "1" ? failingPolicy : plannedPolicy;
   const replay = state.settings.replayMode;
 
   const topics = useMemo(() => coachTopics(), []);
-  const byId = useMemo(() => new Map(topics.map((t) => [t.id, t])), [topics]);
+  const byId = useMemo(() => new Map(allTopics.map((t) => [t.id, t])), [allTopics]);
 
   const [session, dispatch] = useReducer(sessionReducer, initialSession, loadSession);
   const [closed, setClosed] = useState<SpokenMiss[]>([]);
   const [repair, setRepair] = useState<RepairOutcome | null>(null);
+  const [sample, setSample] = useState(false);
+  // An interview thread, when the interviewer picks a topic that has one. The
+  // classic single-question session below runs for every other topic.
+  // A saved interview from before a refresh is picked up where it stopped.
+  const [thread, setThread] = useState<{
+    topicId: string;
+    role: RoleTrack;
+    reason: string;
+    trace: TraceEntry[];
+    startedAt: string;
+    resume?: SavedThread | null;
+  } | null>(() => {
+    const saved = loadThread();
+    return saved
+      ? {
+          topicId: saved.topicId,
+          role: saved.role,
+          reason: saved.reason,
+          trace: saved.trace,
+          startedAt: saved.startedAt,
+          resume: saved,
+        }
+      : null;
+  });
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => saveSession(session), [session]);
+
+  // Keep the whole session in History as it grows: after each graded answer, and
+  // again once the repaired answer arrives. Saving is idempotent per session.
+  useEffect(() => {
+    const record = buildSession({
+      startedAt: session.startedAt,
+      role: session.role,
+      rounds: session.rounds,
+      trace: session.trace,
+      repair:
+        repair?.status === "repaired"
+          ? { sentences: repair.repair.sentences, dropped: repair.repair.dropped }
+          : null,
+      closed,
+      titleFor: (topicId) => byId.get(topicId)?.title ?? topicId,
+    });
+    if (record) recordSession(record);
+  }, [session, repair, closed, byId]);
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
@@ -74,6 +124,7 @@ export default function Coach() {
 
   const round = currentRound(session);
   const topic = round ? byId.get(round.topicId) : undefined;
+  const openMiss = topic ? latestOpenMiss(state.misses, topic.id) : null;
 
   const context = useCallback(
     (role: RoleTrack): InterviewContext => ({
@@ -87,15 +138,29 @@ export default function Coach() {
 
   // --- interviewer steps ----------------------------------------------------
 
-  const start = async (role: RoleTrack) => {
-    dispatch({ type: "start", role, at: new Date().toISOString() });
+  const start = async (role: RoleTrack, forcedTopicId?: string) => {
+    const startedAt = new Date().toISOString();
     setClosed([]);
     setRepair(null);
     const agent = new Interviewer(policy);
     const ctx: InterviewContext = { role, topics, misses: state.misses, askedTopicIds: [] };
-    const choice = await agent.pickNextQuestion(ctx);
+    const forced = forcedTopicId ? byId.get(forcedTopicId) : undefined;
+    const choice: QuestionChoice = forced
+      ? {
+          topicId: forced.id,
+          reason: "A sample question with a saved answer, so you can see a full result without a microphone.",
+        }
+      : await agent.pickNextQuestion(ctx);
     await agent.getRubric(choice.topicId, ctx);
     const picked = byId.get(choice.topicId);
+
+    // The sample has a saved answer for the whole question, so it stays one question.
+    if (!forced && picked && threadFor(picked.id)) {
+      setThread({ topicId: picked.id, role, reason: choice.reason, trace: agent.trace, startedAt });
+      return;
+    }
+
+    dispatch({ type: "start", role, at: startedAt });
     dispatch({ type: "trace", entries: agent.trace });
     dispatch({
       type: "ask",
@@ -107,6 +172,49 @@ export default function Coach() {
         targetLine: null,
       },
     });
+  };
+
+  const startSample = async () => {
+    updateSettings({ replayMode: true });
+    setSample(true);
+    await start("ai-engineer", SAMPLE_TOPIC_ID);
+  };
+
+  /** The visitor picked one interview from the list instead of letting the interviewer choose. */
+  const chooseInterview = async (topicId: string) => {
+    const picked = byId.get(topicId);
+    if (!picked || !threadFor(topicId)) return;
+    const role: RoleTrack = picked.roles?.[0] ?? "ai-engineer";
+    const startedAt = new Date().toISOString();
+    setSample(false);
+    setClosed([]);
+    setRepair(null);
+    const agent = new Interviewer(policy);
+    await agent.getRubric(topicId, { role, topics, misses: state.misses, askedTopicIds: [] });
+    setThread({ topicId, role, reason: "You chose this interview.", trace: agent.trace, startedAt });
+  };
+
+  const interviews = useMemo<InterviewOption[]>(
+    () =>
+      THREADS.flatMap((def) => {
+        const t = byId.get(def.topicId);
+        if (!t) return [];
+        return [
+          {
+            topicId: def.topicId,
+            title: t.title,
+            area: def.area,
+            scene: def.scene,
+            openGaps: state.misses.filter((m) => m.status === "open" && m.topicId === def.topicId).length,
+          },
+        ];
+      }),
+    [byId, state.misses],
+  );
+
+  const startLive = async (role: RoleTrack) => {
+    setSample(false);
+    await start(role);
   };
 
   const followUp = async () => {
@@ -172,77 +280,110 @@ export default function Coach() {
   };
 
   const reset = () => {
+    setThread(null);
     dispatch({ type: "reset" });
     setClosed([]);
     setRepair(null);
+    setSample(false);
   };
 
   // --- render ---------------------------------------------------------------
 
   const left = remainingSeconds(session, now);
+  const inSession = session.phase !== "role";
+  const open = openMisses(state.misses);
+  const closedCount = state.misses.filter((m) => m.status === "resolved").length;
 
   return (
     <div>
-      <PageTitle
-        sub={
-          session.startedAt
-            ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} left in this session`
-            : "Five minutes: one question, one follow-up, one repaired answer."
-        }
-      >
-        Coach
-      </PageTitle>
+      {thread && threadFor(thread.topicId) && byId.get(thread.topicId) && (
+        <ThreadSession
+          key={thread.startedAt}
+          topic={byId.get(thread.topicId)!}
+          def={threadFor(thread.topicId)!}
+          role={thread.role}
+          startReason={thread.reason}
+          trace={thread.trace}
+          startedAt={thread.startedAt}
+          resume={thread.resume}
+          topicTitle={(id) => byId.get(id)?.title ?? id}
+          onExit={reset}
+        />
+      )}
 
-      {replay && (
-        <Card className="mb-4 border-sky-500/30 bg-sky-500/5">
-          <Badge>Replay</Badge>
-          <p className="mt-2 text-sm text-zinc-300">
-            Replay mode: grades come from saved responses, not live model calls.{" "}
-            {REPLAY_SOURCE === "authored"
-              ? "These responses were written by hand in the model's output format; they have not been recorded from a live run."
-              : "These responses were recorded from a live run."}{" "}
-            The citation gate and combine step still run on them.
-          </p>
-          <Button size="sm" variant="ghost" className="mt-2 px-0" onClick={() => updateSettings({ replayMode: false })}>
-            Turn replay off
-          </Button>
+      {!thread && replay && (
+        <Card className="mb-4 border-sky-500/30 bg-sky-500/5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <p className="text-sm text-zinc-300">
+              <Badge>Replay</Badge>{" "}
+              <span className="ml-1">
+                Grades come from saved responses, not live model calls.{" "}
+                {REPLAY_SOURCE === "authored"
+                  ? "They were written by hand in the model's output format, not recorded live. "
+                  : "They were recorded from a live run. "}
+                The citation gate and combine step still run on them.
+              </span>
+            </p>
+            <Button size="sm" variant="ghost" onClick={() => updateSettings({ replayMode: false })}>
+              Turn replay off
+            </Button>
+          </div>
         </Card>
       )}
 
-      {session.phase === "role" && <RolePicker onPick={start} />}
+      {!thread && session.phase === "role" && (
+        <Landing
+          onPick={startLive}
+          onChoose={chooseInterview}
+          interviews={interviews}
+          onSample={startSample}
+          openMisses={open}
+          closedCount={closedCount}
+          topicTitle={(id) => byId.get(id)?.title ?? id}
+        />
+      )}
 
-      {round && topic && session.phase !== "role" && session.phase !== "done" && (
-        <QuestionCard round={round} topic={topic} />
+      {inSession && round && topic && session.phase !== "done" && (
+        <div className="mb-4 flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <SessionStepper phase={session.phase} round={round} />
+          </div>
+          <p className="shrink-0 font-mono text-sm tabular-nums text-zinc-400" title="Time left in this session">
+            {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}
+          </p>
+        </div>
+      )}
+
+      {round && topic && inSession && session.phase !== "done" && (
+        <QuestionCard
+          round={round}
+          topic={topic}
+          // The gap being retested matters while answering. After grading, the
+          // open miss may be the one this very answer just created.
+          openMiss={session.phase === "answering" ? openMiss : null}
+          compact={session.phase === "results" || session.phase === "repair"}
+        />
       )}
 
       {session.phase === "answering" && round && topic && (
-        <AnswerBox
+        <AnswerPanel
           key={`${round.topicId}-${session.rounds.length}`}
           topic={topic}
-          initial={round.transcript}
+          initial={round.transcript || (sample ? (replayFor(topic.id)?.transcript ?? "") : "")}
           limit={state.settings.timerSeconds}
           replay={replay}
           onSubmit={grade}
         />
       )}
 
-      {session.phase === "grading" && (
-        <Card className="mb-4">
-          <p className="text-sm text-zinc-300">
-            Nano is pulling out your points; then Nano and Ultra rate each one in parallel.
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Same points, same rubric, same prompt. Every rating is checked against your words before
-            the two are compared.
-          </p>
-        </Card>
-      )}
+      {session.phase === "grading" && <GradingPanel />}
 
       {session.phase === "results" && round?.outcome && topic && (
         <>
           <CoachResult
             topic={topic}
             outcome={round.outcome}
+            transcript={round.transcript}
             trace={session.trace}
             closed={closed.filter((m) => byId.has(m.topicId))}
             topicTitle={(id) => byId.get(id)?.title ?? id}
@@ -252,20 +393,22 @@ export default function Coach() {
               dispatch({ type: "retry" });
             }}
           />
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap items-center gap-3">
             {round.outcome.status !== "graded" && (
-              <Button variant="primary" onClick={() => dispatch({ type: "retry" })}>
+              <Button variant="primary" size="lg" onClick={() => dispatch({ type: "retry" })}>
                 Try again
               </Button>
             )}
             {round.outcome.status === "graded" && canAskFollowUp(session) && (
-              <Button variant="primary" onClick={followUp}>
-                Next: the follow-up
+              <Button variant="primary" size="lg" onClick={followUp}>
+                Next: a follow-up that targets your gap
+                <ArrowRightIcon className="h-5 w-5" />
               </Button>
             )}
             {round.outcome.status === "graded" && !canAskFollowUp(session) && (
-              <Button variant="primary" onClick={runRepair}>
-                See the repaired answer
+              <Button variant="primary" size="lg" onClick={runRepair}>
+                See your repaired answer
+                <ArrowRightIcon className="h-5 w-5" />
               </Button>
             )}
             <Button variant="ghost" onClick={reset}>
@@ -278,8 +421,8 @@ export default function Coach() {
       {session.phase === "repair" && (
         <>
           <RepairView repair={repair} />
-          <div className="mt-4 flex gap-3">
-            <Button variant="primary" onClick={() => dispatch({ type: "finish" })}>
+          <div className="mt-6 flex gap-3">
+            <Button variant="primary" size="lg" onClick={() => dispatch({ type: "finish" })}>
               Finish
             </Button>
           </div>
@@ -287,15 +430,12 @@ export default function Coach() {
       )}
 
       {session.phase === "done" && (
-        <Card className="mb-4">
-          <p className="text-sm text-zinc-200">Session complete.</p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Any miss that is still open leads your next session.
-          </p>
-          <Button className="mt-3" onClick={reset}>
-            Start another
-          </Button>
-        </Card>
+        <SessionSummary
+          rounds={session.rounds}
+          closed={closed}
+          openCount={open.length}
+          onRestart={reset}
+        />
       )}
     </div>
   );
@@ -309,33 +449,75 @@ function missedFor(round: Round): string[] {
 
 // --- pieces -----------------------------------------------------------------
 
-function RolePicker({ onPick }: { onPick: (role: RoleTrack) => void }) {
+function SessionStepper({ phase, round }: { phase: string; round: Round }) {
+  const current = phase === "repair" ? 3 : round.kind === "followup" ? 2 : 1;
+  const steps = ["Question", "Follow-up", "Repair"];
   return (
-    <Card className="mb-4">
-      <SectionLabel>Pick your track</SectionLabel>
-      <div className="flex flex-wrap gap-3">
-        {(Object.keys(ROLE_LABELS) as RoleTrack[]).map((role) => (
-          <Button key={role} variant="primary" onClick={() => onPick(role)}>
-            {ROLE_LABELS[role]}
-          </Button>
-        ))}
-      </div>
-      <p className="mt-3 text-sm text-zinc-500">
-        The interviewer picks a question from your open misses, or opens fresh if you have none.
-      </p>
-    </Card>
+    <ol className="flex items-center gap-2" aria-label="Session progress">
+      {steps.map((label, index) => {
+        const step = index + 1;
+        return (
+          <li key={label} className="flex flex-1 items-center gap-2">
+            <span
+              className={cx(
+                "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                step < current
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                  : step === current
+                    ? "border-amber-400 bg-amber-400 text-zinc-950"
+                    : "border-zinc-700 text-zinc-500",
+              )}
+            >
+              {step < current ? <CheckIcon className="h-3.5 w-3.5" /> : step}
+            </span>
+            <span className={cx("text-xs", step === current ? "text-zinc-200" : "text-zinc-500")}>{label}</span>
+            {step < steps.length && <span className="h-px flex-1 bg-zinc-800" aria-hidden />}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
-export function QuestionCard({ round, topic }: { round: Round; topic: Topic }) {
+export function QuestionCard({
+  round,
+  topic,
+  openMiss = null,
+  compact = false,
+}: {
+  round: Round;
+  topic: Topic;
+  openMiss?: SpokenMiss | null;
+  /** One quiet line, for when the result is the thing to read. */
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <Card className="mb-4 py-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          {round.kind === "opening" ? "Question" : "Follow-up"} · {topic.title}
+        </p>
+        <p className="mt-1 line-clamp-2 text-sm text-zinc-300">{round.prompt}</p>
+      </Card>
+    );
+  }
   return (
-    <Card className="mb-4">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+    <Card className="mb-4 animate-fade-up">
+      {openMiss && (
+        <div className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+          <p className="text-xs font-medium uppercase tracking-wider text-amber-300">Open gap being retested</p>
+          <p className="mt-1 text-sm text-zinc-200">{openMiss.plainLanguage}</p>
+        </div>
+      )}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <Badge tone="accent">{round.kind === "opening" ? "Question" : "Follow-up"}</Badge>
         {topic.sourceLabel && <Badge>{SOURCE_LABELS[topic.sourceLabel]} source</Badge>}
         <span className="text-xs text-zinc-500">{topic.title}</span>
       </div>
-      <p className="text-base text-zinc-100">{round.prompt}</p>
+      <p className="text-xl leading-relaxed text-zinc-50 sm:text-2xl">{round.prompt}</p>
+      <p className="mt-3 text-sm text-zinc-400">
+        <span className="font-medium text-zinc-300">Why this question:</span> {round.reason}
+      </p>
       {topic.sourceNote && (
         <details className="mt-2">
           <summary className="cursor-pointer text-xs text-zinc-500">Where this comes from</summary>
@@ -346,114 +528,26 @@ export function QuestionCard({ round, topic }: { round: Round; topic: Topic }) {
   );
 }
 
-function AnswerBox({
-  topic,
-  initial,
-  limit,
-  replay,
-  onSubmit,
-}: {
-  topic: Topic;
-  initial: string;
-  limit: number;
-  replay: boolean;
-  onSubmit: (transcript: string, seconds: number) => void;
-}) {
-  const [text, setText] = useState(initial);
-  const [listening, setListening] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const live = useRef<LiveTranscript | null>(null);
-  const saved = replayFor(topic.id);
-
-  const stop = useCallback(() => {
-    const final = live.current?.stop();
-    live.current = null;
-    setListening(false);
-    if (final) setText(final);
-  }, []);
-
-  useEffect(() => {
-    if (!listening) return;
-    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [listening]);
-
-  useEffect(() => {
-    if (listening && elapsed >= limit) stop();
-  }, [listening, elapsed, limit, stop]);
-
-  useEffect(() => () => live.current?.discard(), []);
-
-  const speak = () => {
-    setError(null);
-    setElapsed(0);
-    live.current = startLiveTranscript({
-      onUpdate: setText,
-      onError: (e) => setError(`Speech recognition stopped (${e}). You can type or fix the text below.`),
-    });
-    if (live.current) setListening(true);
-    else setError("Speech recognition is not available in this browser. Type your answer below.");
-  };
-
-  return (
-    <Card className="mb-4">
-      <SectionLabel>Your answer</SectionLabel>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        {listening ? (
-          <Button onClick={stop}>Stop ({limit - elapsed}s)</Button>
-        ) : (
-          <Button onClick={speak} disabled={!isTranscriptionSupported()}>
-            Speak (up to {limit}s)
-          </Button>
-        )}
-        {replay && saved && (
-          <Button variant="ghost" onClick={() => setText(saved.transcript)}>
-            Use the saved answer
-          </Button>
-        )}
-      </div>
-      {replay && !saved && (
-        <p className="mb-2 text-xs text-amber-300">
-          No saved answer exists for this question, so replay cannot grade it. Turn replay off to grade live.
-        </p>
-      )}
-      {error && <p className="mb-2 text-xs text-rose-300">{error}</p>}
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={6}
-        placeholder="Your words appear here as you speak. Fix any mis-heard terms before grading."
-        className="w-full resize-y rounded border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-      />
-      <Button
-        className="mt-3"
-        variant="primary"
-        disabled={listening || !text.trim()}
-        onClick={() => onSubmit(text.trim(), elapsed)}
-      >
-        Grade this answer
-      </Button>
-    </Card>
-  );
-}
-
 export function CoachResult({
   topic,
   outcome,
+  transcript = "",
   trace,
   closed,
   topicTitle,
   canSwitchToReplay,
   onSwitchToReplay,
+  proofDefaultOpen = false,
 }: {
   topic: Topic;
   outcome: RatedOutcome;
+  transcript?: string;
   trace: TraceEntry[];
   closed: SpokenMiss[];
   topicTitle: (id: string) => string;
   canSwitchToReplay: boolean;
   onSwitchToReplay: () => void;
+  proofDefaultOpen?: boolean;
 }) {
   if (outcome.status === "skipped") {
     return (
@@ -467,16 +561,16 @@ export function CoachResult({
     const quota = outcome.reason === "rate-limited" || outcome.reason === "quota-reached";
     return (
       <Card className="border-zinc-700">
-        <p className="text-sm text-zinc-300">
+        <p className="text-base font-medium text-zinc-100">
           {quota ? "The shared demo budget is used up." : "The grade did not run."}
         </p>
-        <p className="mt-1 text-sm text-zinc-500">{outcome.detail}</p>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-400">{outcome.detail}</p>
+        <p className="mt-2 text-sm text-zinc-400">
           No miss was invented. {quota && "Add your own Token Factory key in Settings, or "}
           {canSwitchToReplay ? "switch to replay to continue the demo with a saved answer." : ""}
         </p>
         {canSwitchToReplay && (
-          <Button size="sm" className="mt-3" onClick={onSwitchToReplay}>
+          <Button size="sm" variant="primary" className="mt-3" onClick={onSwitchToReplay}>
             Switch to replay
           </Button>
         )}
@@ -484,112 +578,59 @@ export function CoachResult({
     );
   }
 
-  const brief = buildCoachBrief(topic, outcome);
-
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {outcome.replay && <Badge>Replay, not live</Badge>}
-        {outcome.partial && (
-          <Badge tone="bad">
-            Only {outcome.models.nano ? "Nano" : "Ultra"} answered; one opinion per rating
-          </Badge>
-        )}
-      </div>
-
-      <Card>
-        <SectionLabel>What you said</SectionLabel>
-        <ul className="mt-3 space-y-4">
-          {brief.groups.map((group) => (
-            <li key={group.part}>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={group.landed ? "good" : "bad"}>{group.landed ? "Landed" : "Not yet"}</Badge>
-                <span className="text-sm text-zinc-200">{group.part}</span>
-              </div>
-              {group.highlights.length > 0 ? (
-                <ul className="mt-2 space-y-2">
-                  {group.highlights.map((quote) => (
-                    <li key={quote}>
-                      <SpokenQuote>{quote}</SpokenQuote>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-xs text-zinc-500">Nothing on-target yet for this part.</p>
-              )}
-            </li>
-          ))}
-        </ul>
-        {brief.hasCollapsedNoise && (
-          <p className="mt-4 text-xs text-zinc-500">The rest did not answer the question.</p>
-        )}
-
-        <div className="mt-6">
-          <SectionLabel>Verdict</SectionLabel>
-        </div>
-        <p className="mt-2 text-sm text-zinc-100">{brief.verdict}</p>
-
-        <div className="mt-6">
-          <SectionLabel>Say this next</SectionLabel>
-        </div>
-        <p className="mt-2 text-sm leading-relaxed text-emerald-100">{brief.sayNext}</p>
-
-      </Card>
-
-      <Analysis topic={topic} outcome={outcome} trace={trace} />
-      {closed.length > 0 && (
-        <Card className="border-emerald-500/30 bg-emerald-500/5">
-          <SectionLabel>Closed on a different question</SectionLabel>
-          {closed.map((m) => (
-            <p key={m.id} className="text-sm text-zinc-200">
-              &ldquo;{m.missType}&rdquo; from <span className="text-zinc-400">{topicTitle(m.topicId)}</span> is
-              now closed: you covered it here without being asked the same question.
-            </p>
-          ))}
-        </Card>
-      )}
-    </div>
+    <GradedResult
+      topic={topic}
+      outcome={outcome}
+      trace={trace}
+      transcript={transcript}
+      closed={closed}
+      topicTitle={topicTitle}
+      proofDefaultOpen={proofDefaultOpen}
+    />
   );
 }
 
-function RepairView({ repair }: { repair: RepairOutcome | null }) {
-  if (!repair) {
-    return (
-      <Card>
-        <p className="text-sm text-zinc-300">Nothing was missed, so there is nothing to repair.</p>
-      </Card>
-    );
-  }
-  if (repair.status !== "repaired") {
-    return (
-      <Card className="border-zinc-700">
-        <p className="text-sm text-zinc-300">The repaired answer is unavailable.</p>
-        <p className="mt-1 text-sm text-zinc-500">{repair.detail}</p>
-      </Card>
-    );
-  }
+function SessionSummary({
+  rounds,
+  closed,
+  openCount,
+  onRestart,
+}: {
+  rounds: Round[];
+  closed: SpokenMiss[];
+  openCount: number;
+  onRestart: () => void;
+}) {
+  const answered = rounds.filter((r) => r.outcome?.status === "graded").length;
+  const found = rounds.filter((r) => r.outcome?.status === "graded" && r.outcome.gap).length;
+  const stats = [
+    { label: "Answers rated", value: answered },
+    { label: "Gaps found", value: found },
+    { label: "Gaps closed", value: closed.length },
+  ];
   return (
-    <Card>
-      <SectionLabel>Your answer, repaired</SectionLabel>
-      <p className="mb-3 text-xs text-zinc-500">
-        Your own sentences, plus only the missed points. Every added sentence is tagged with its rubric
-        line; untagged additions were dropped{repair.repair.dropped > 0 ? ` (${repair.repair.dropped} here)` : ""}.
+    <Card className="animate-fade-up p-6 text-center">
+      <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300">
+        <CheckIcon className="h-6 w-6" />
+      </span>
+      <h2 className="mt-3 text-2xl font-semibold text-zinc-50">Session complete</h2>
+      <dl className="mx-auto mt-5 grid max-w-md grid-cols-3 gap-3">
+        {stats.map((s) => (
+          <div key={s.label} className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+            <dd className="font-mono text-2xl font-semibold text-zinc-50">{s.value}</dd>
+            <dt className="mt-0.5 text-xs text-zinc-500">{s.label}</dt>
+          </div>
+        ))}
+      </dl>
+      <p className="mx-auto mt-5 max-w-md text-sm text-zinc-400">
+        {openCount > 0
+          ? `${openCount} gap${openCount === 1 ? " is" : "s are"} still open. Your next session starts from ${openCount === 1 ? "it" : "them"}.`
+          : "No open gaps. Your next session starts with a fresh question."}
       </p>
-      <div className="space-y-2">
-        {repair.repair.sentences.map((s, i) =>
-          s.rubricLine ? (
-            <div key={i} className="rounded border border-emerald-500/30 bg-emerald-500/5 p-2">
-              <p className="text-sm text-emerald-100">{s.text}</p>
-              <p className="mt-1 text-[11px] text-zinc-500">Added for: {s.rubricLine}</p>
-            </div>
-          ) : (
-            <p key={i} className="text-sm text-zinc-400">
-              {s.text}
-            </p>
-          ),
-        )}
-      </div>
+      <Button className="mt-5" variant="primary" size="lg" onClick={onRestart}>
+        Start another session
+      </Button>
     </Card>
   );
 }
-

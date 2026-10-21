@@ -29,7 +29,7 @@ export function SectionLabel({ children }: { children: ReactNode }) {
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 };
 
 const BUTTON_VARIANTS: Record<NonNullable<ButtonProps["variant"]>, string> = {
@@ -43,8 +43,12 @@ export function Button({ variant = "secondary", size = "md", className, ...rest 
   return (
     <button
       className={cx(
-        "rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-        size === "sm" ? "px-2.5 py-1 text-xs" : "px-4 py-2 text-sm",
+        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+        size === "sm"
+          ? "px-2.5 py-1 text-xs"
+          : size === "lg"
+            ? "rounded-lg px-6 py-3 text-base"
+            : "px-4 py-2 text-sm",
         BUTTON_VARIANTS[variant],
         className,
       )}
@@ -70,7 +74,7 @@ export function Badge({
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium",
         BADGE_TONES[tone],
       )}
     >

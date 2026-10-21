@@ -57,9 +57,9 @@ describe("coach questions", () => {
   const coaches = coachTopics();
   const byId = new Map(coaches.map((topic) => [topic.id, topic]));
 
-  it("is the eight-question set", () => {
-    expect(coaches).toHaveLength(8);
-    expect(new Set(coaches.map((topic) => topic.id)).size).toBe(8);
+  it("is the fourteen-question set", () => {
+    expect(coaches).toHaveLength(14);
+    expect(new Set(coaches.map((topic) => topic.id)).size).toBe(14);
   });
 
   it("covers both role tracks with enough questions for a session", () => {

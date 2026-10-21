@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
 
 /**
- * Serves api/grade.ts during `npm run dev`.
+ * Serves the handlers in api/ (grade, collect, stats) during `npm run dev`.
  *
  * In production the function is deployed by the host. Vite's dev server does
  * not know about it, so without this the grading call 404s locally and the one
@@ -16,22 +16,30 @@ import { fileURLToPath, URL } from "node:url";
  * Imported through Vite's module runner rather than a plain import so edits to
  * the handler take effect without restarting the server.
  */
+const API_ROUTES = ["grade", "collect", "stats"];
+
 function apiRoutes(): Plugin {
   return {
     name: "sixty-api-dev",
     apply: "serve",
     configureServer(server) {
-      server.middlewares.use("/api/grade", (req, res) => {
+      server.middlewares.use("/api", (req, res, next) => {
+        // Mounted at /api, so req.url is the rest of the path: "/grade", "/stats?x=1".
+        const name = /^\/([a-z]+)(?:[?/]|$)/.exec(req.url ?? "")?.[1];
+        if (!name || !API_ROUTES.includes(name)) {
+          next();
+          return;
+        }
         void (async () => {
           try {
             const chunks: Buffer[] = [];
             for await (const chunk of req) chunks.push(chunk as Buffer);
 
-            const mod = (await server.ssrLoadModule("/api/grade.ts")) as {
+            const mod = (await server.ssrLoadModule(`/api/${name}.ts`)) as {
               default: (request: Request) => Promise<Response>;
             };
 
-            const request = new Request(`http://localhost${req.url ?? "/"}`, {
+            const request = new Request(`http://localhost/api${req.url ?? "/"}`, {
               method: req.method ?? "GET",
               headers: req.headers as HeadersInit,
               ...(chunks.length ? { body: Buffer.concat(chunks) } : {}),
