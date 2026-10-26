@@ -1,0 +1,112 @@
+1
+00:00:00,000 --> 00:00:02,132
+Practice interviews ask you to rate yourself.
+
+2
+00:00:02,182 --> 00:00:04,072
+But you can't rate what you never said.
+
+3
+00:00:04,530 --> 00:00:05,490
+This is sixty.
+
+4
+00:00:07,766 --> 00:00:11,641
+sixty is a spoken interview coach for engineers moving into AI roles.
+
+5
+00:00:11,691 --> 00:00:15,338
+You answer out loud, and it tells you exactly what you left out.
+
+6
+00:00:15,388 --> 00:00:19,036
+The grade runs on NVIDIA Nemotron, through Nebius Token Factory.
+
+7
+00:00:19,608 --> 00:00:23,211
+Here is a real interview question: design a production RAG system.
+
+8
+00:00:23,261 --> 00:00:26,698
+In the app you speak, and the transcript fills in as you talk.
+
+9
+00:00:26,748 --> 00:00:30,019
+To show you, I'll let a synthetic voice play the candidate.
+
+10
+00:01:02,486 --> 00:01:05,870
+You can fix any mis-heard words before anything is graded.
+
+11
+00:01:05,920 --> 00:01:07,173
+Then, rate my answer.
+
+12
+00:01:07,437 --> 00:01:08,928
+Now the part that matters.
+
+13
+00:01:08,978 --> 00:01:12,188
+Nemotron Nano first splits the answer into its points.
+
+14
+00:01:12,238 --> 00:01:17,108
+Then Nano and Ultra each rate every point, independently, on Nebius Token Factory.
+
+15
+00:01:17,158 --> 00:01:19,657
+Every finding must quote your exact words.
+
+16
+00:01:19,707 --> 00:01:21,969
+A quote you never said is thrown away.
+
+17
+00:01:27,366 --> 00:01:28,389
+Here is the result.
+
+18
+00:01:28,439 --> 00:01:29,858
+Two scores, side by side.
+
+19
+00:01:29,908 --> 00:01:34,039
+Where the models split, you see both views, and nothing is averaged away.
+
+20
+00:01:34,089 --> 00:01:38,107
+Every sentence you said is colour coded by how the two models rated it.
+
+21
+00:01:38,157 --> 00:01:41,271
+And at the top, one line to act on: say this next time.
+
+22
+00:01:41,837 --> 00:01:43,394
+Don't take the grade on trust.
+
+23
+00:01:43,444 --> 00:01:51,644
+Open the proof, and you can see where the models agree, point by point, and exactly which calls ran: the models, the time each took, and the tokens used.
+
+24
+00:01:54,419 --> 00:01:56,365
+Then the coach doesn't stop at a score.
+
+25
+00:01:56,415 --> 00:02:03,529
+It asks a different question that tests the same idea, so a gap only closes when you cover it on a question you haven't just seen answered.
+
+26
+00:02:04,013 --> 00:02:08,545
+Your recording never leaves your browser, and your progress stays on your device.
+
+27
+00:02:08,595 --> 00:02:11,939
+sixty runs on NVIDIA Nemotron through Nebius Token Factory.
+
+28
+00:02:11,989 --> 00:02:14,598
+Try it at nvidia hackethon dot vercel dot app.
+
