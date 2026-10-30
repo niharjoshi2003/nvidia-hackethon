@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { seedTopics } from "../src/data/topics/index.js";
+import { SHARED_CLAIMS } from "../src/data/topics/sharedClaims.js";
 import { isStudyUrl, STUDY_DOMAINS, studyRequestSchema, type StudySourcesResult } from "../src/lib/studySources.js";
 
 export const config = { runtime: "nodejs" };
@@ -52,7 +53,11 @@ export async function handler(request: Request): Promise<Response> {
 
   // Built only from trusted public catalog text, never the user's answer.
   const focus = idea.split(/\s+because\s+/i)[0];
-  const query = `${focus}. ${idea === topic.title ? "" : topic.title + ". "}Technical documentation and practical examples.`;
+  const retrievalEvaluation = idea === SHARED_CLAIMS.retrievalEval;
+  const query = retrievalEvaluation
+    ? "RAG retrieval evaluation context precision context recall generation metrics"
+    : `${focus}. ${idea === topic.title ? "" : topic.title + ". "}Technical documentation and practical examples.`;
+  const domains = retrievalEvaluation ? ["docs.ragas.io", "docs.langchain.com", "docs.llamaindex.ai"] : STUDY_DOMAINS;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
   try {
@@ -61,7 +66,7 @@ export async function handler(request: Request): Promise<Response> {
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         query, topic: "general", search_depth: "basic", max_results: 3,
-        include_domains: STUDY_DOMAINS, include_answer: false, include_raw_content: false,
+        include_domains: domains, include_answer: false, include_raw_content: false,
         include_images: false, auto_parameters: false,
       }),
     });

@@ -42,8 +42,9 @@ describe("Tavily study-source integration", () => {
     expect(url).toBe("https://api.tavily.com/search");
     expect(options.headers.Authorization).toBe("Bearer server-only-test-secret");
     const payload = JSON.parse(options.body);
-    expect(payload.query).toContain("Retrieval is evaluated separately from generation");
-    expect(payload.query).toContain(topic.title);
+    expect(payload.query).toContain("RAG retrieval evaluation");
+    expect(payload.query).toContain("context recall");
+    expect(payload.include_domains).toEqual(["docs.ragas.io", "docs.langchain.com", "docs.llamaindex.ai"]);
     expect(body.idea).toBe(request.rubricLine);
     expect(payload).toMatchObject({ search_depth: "basic", max_results: 3, include_answer: false, include_raw_content: false });
     expect(options.body).not.toContain("server-only-test-secret");
@@ -95,6 +96,6 @@ describe("study-source browser boundary", () => {
 
   it("only accepts HTTPS links on the documentation allowlist", () => {
     expect(isStudyUrl("https://docs.ragas.io/page")).toBe(true);
-    for (const value of ["http://docs.ragas.io/page", "https://docs.ragas.io.evil.example", "javascript:alert(1)", "https://localhost", "https://user:pass@docs.ragas.io/"]) expect(isStudyUrl(value)).toBe(false);
+    for (const value of ["http://docs.ragas.io/page", "https://docs.ragas.io.evil.example", "javascript:alert(1)", "https://localhost", "https://user:pass@docs.ragas.io/", "https://learn.microsoft.com/en-us/answers/questions/123/unrelated"]) expect(isStudyUrl(value)).toBe(false);
   });
 });

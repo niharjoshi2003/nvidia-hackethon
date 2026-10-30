@@ -11,6 +11,7 @@ export function isStudyUrl(value: string): boolean {
   try {
     const url = new URL(value);
     return url.protocol === "https:" && !url.username && !url.password &&
+      !/\/(answers|community|discuss|forums)\//i.test(url.pathname) &&
       STUDY_DOMAINS.some((domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`));
   } catch { return false; }
 }
