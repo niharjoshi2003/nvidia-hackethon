@@ -17,7 +17,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import handler from "../api/grade";
+import { handler } from "../api/grade";
 import { gradeParallel } from "@/agent/gradeParallel";
 import { findTopic } from "@/data/topics";
 import {

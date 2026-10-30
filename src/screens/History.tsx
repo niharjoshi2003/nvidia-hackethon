@@ -17,6 +17,8 @@ import {
 } from "@/lib/history";
 import { ROLE_LABELS, type Topic } from "@/types";
 import SessionThread from "@/components/SessionThread";
+import { retryableAnswers, retrySession } from "@/lib/retrySession";
+import { applyView } from "@/lib/thread";
 import { ArrowRightIcon, MicIcon } from "@/components/icons";
 import { Badge, Button, Card, cx } from "@/components/ui";
 
@@ -61,7 +63,7 @@ function sessionScores(entry: SavedSession, topicById: Map<string, Topic>): Scor
   for (const round of entry.rounds) {
     const topic = topicById.get(round.topicId);
     if (!topic || round.outcome?.status !== "graded") continue;
-    const reading = analyse(topic, round.outcome as GradedOutcome);
+    const reading = analyse(round.view ? applyView(topic, round.view) : topic, round.outcome as GradedOutcome);
     for (const v of reading.verdicts) {
       if (v.score === null) continue;
       (v.grader === "nano" ? nano : ultra).push(v.score);
@@ -76,13 +78,15 @@ function sessionScores(entry: SavedSession, topicById: Map<string, Topic>): Scor
 
 export default function History() {
   const { id } = useParams();
-  const { topics } = useStore();
+  const { topics, state } = useStore();
   const topicById = useMemo(() => new Map(topics.map((t) => [t.id, t])), [topics]);
 
   const [local, setLocal] = useState<SavedSession[]>(() => loadHistory());
   const [filter, setFilter] = useState<Filter>("all");
   const [notice, setNotice] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryProgress, setRetryProgress] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
   const entries = useMemo(() => mergeEntries(local, FEATURED_SESSIONS), [local]);
@@ -124,6 +128,38 @@ export default function History() {
     }
     persist(removeSession(local, entry.id));
     setConfirmDelete(false);
+  };
+
+  const retry = async (entry: SavedSession) => {
+    if (retrying) return;
+    setRetrying(true);
+    setRetryProgress("Rating saved answers…");
+    try {
+      const result = await retrySession(entry, topicById, {
+        ownApiKey: state.settings.ownApiKey || undefined,
+        onProgress: (updated, completed, total) => {
+          // Persist after each answer, so a refresh retains completed retries.
+          setLocal((previous) => {
+            const next = upsertSession(previous, updated);
+            saveHistory(next);
+            return next;
+          });
+          setRetryProgress(`Rated ${completed} of ${total} saved answers`);
+        },
+      });
+      const remaining = retryableAnswers(result);
+      setNotice({
+        tone: remaining ? "bad" : "ok",
+        text: remaining
+          ? `${remaining} answer${remaining === 1 ? " still needs" : "s still need"} a rating. Your words and completed ratings are saved; inspect the error below before retrying.`
+          : "Saved answers rated. Your original questions and words are unchanged.",
+      });
+    } catch {
+      setNotice({ tone: "bad", text: "The retry stopped. Completed ratings are saved; you can retry the remaining answers." });
+    } finally {
+      setRetrying(false);
+      setRetryProgress("");
+    }
   };
 
   return (
@@ -270,6 +306,16 @@ export default function History() {
                 confirming={confirmDelete}
                 onCancel={() => setConfirmDelete(false)}
               />
+              {!selected.featured && retryableAnswers(selected) > 0 && (
+                <Card className="mb-6 border-amber-400/30" role="status">
+                  <p className="text-sm text-zinc-300">
+                    Your answers are saved. Retry the missing ratings without recording again.
+                  </p>
+                  <Button className="mt-3" onClick={() => void retry(selected)} disabled={retrying}>
+                    {retrying ? retryProgress : "Retry unrated answers"}
+                  </Button>
+                </Card>
+              )}
               <SessionThread entry={selected} topicById={topicById} />
             </>
           ) : id ? (

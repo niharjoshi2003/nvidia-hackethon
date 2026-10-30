@@ -18,7 +18,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import handler from "../api/grade";
+import { handler } from "../api/grade";
 import { gradeSpokenAnswer } from "@/agent/gradeSpokenAnswer";
 import { findTopic } from "@/data/topics";
 import { normalize } from "@/lib/text";

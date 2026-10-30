@@ -33,9 +33,9 @@ import {
   type SkillLevel,
   type SkillRating,
   type SkillRubric,
-} from "@/types";
-import { isQuotedFrom, normalize, wordCount } from "@/lib/text";
-import { validateJudgment } from "./gradeSchema";
+} from "../types.js";
+import { isQuotedFrom, normalize, wordCount } from "../lib/text.js";
+import { validateJudgment } from "./gradeSchema.js";
 
 export const MAX_POINTS = 12;
 const MIN_POINT_WORDS = 3;

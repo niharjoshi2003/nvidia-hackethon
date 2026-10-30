@@ -9,6 +9,7 @@ node_modules/
 dist/
 coverage/
 .vercel/
+.sixty/
 .vite/
 *.tsbuildinfo
 eval-last-run.log

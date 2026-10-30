@@ -13,7 +13,7 @@
  */
 
 import type { PublicStats, TelemetryEvent } from "../src/lib/telemetrySchema";
-import { TELEMETRY_BANDS } from "../src/lib/telemetrySchema";
+import { TELEMETRY_BANDS } from "../src/lib/telemetrySchema.js";
 import type { Command, Store } from "./_store";
 
 const K = {

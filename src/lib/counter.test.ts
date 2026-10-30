@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import collect from "../../api/collect";
-import stats from "../../api/stats";
+import { handler as collect } from "../../api/collect";
+import { handler as stats } from "../../api/stats";
 import { emptyStats, interviewScore, readStats, recordInterview, RECENT_SESSIONS_KEY, MAX_RECENT_SESSIONS } from "../../api/_counter";
 import { getStore, memoryStore, upstashStore } from "../../api/_store";
 import { telemetrySchema, type TelemetryEvent } from "./telemetrySchema";

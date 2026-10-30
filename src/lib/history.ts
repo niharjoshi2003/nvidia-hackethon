@@ -59,6 +59,8 @@ export interface SavedRepair {
 export interface SavedSession {
   id: string;
   savedAt: string;
+  /** A retry of the saved words, after the original recording or attempt. */
+  regradedAt?: string;
   startedAt: string;
   role: RoleTrack | null;
   /** The first question's title. */

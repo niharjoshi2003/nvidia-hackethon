@@ -36,7 +36,7 @@ function apiRoutes(): Plugin {
             for await (const chunk of req) chunks.push(chunk as Buffer);
 
             const mod = (await server.ssrLoadModule(`/api/${name}.ts`)) as {
-              default: (request: Request) => Promise<Response>;
+              default: { fetch: (request: Request) => Promise<Response> };
             };
 
             const request = new Request(`http://localhost/api${req.url ?? "/"}`, {
@@ -45,7 +45,7 @@ function apiRoutes(): Plugin {
               ...(chunks.length ? { body: Buffer.concat(chunks) } : {}),
             });
 
-            const response = await mod.default(request);
+            const response = await mod.default.fetch(request);
             res.statusCode = response.status;
             response.headers.forEach((value, key) => res.setHeader(key, value));
             res.end(Buffer.from(await response.arrayBuffer()));

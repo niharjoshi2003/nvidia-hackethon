@@ -90,6 +90,11 @@ export default function SessionThread({
 
   return (
     <div className="space-y-8">
+      {entry.regradedAt && (
+        <p className="text-sm text-zinc-400">
+          Ratings recovered from the saved transcripts. The original questions and words are unchanged.
+        </p>
+      )}
       {base && entry.rounds.every((r) => r.view) && <ThreadScorecard topic={base} turns={scored} />}
       {entry.rounds.map((round, i) => (
         <RoundThread key={i} round={round} index={i} entry={entry} topic={topicById.get(round.topicId)} />

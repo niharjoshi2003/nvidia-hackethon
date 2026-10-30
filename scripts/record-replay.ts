@@ -10,7 +10,7 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
-import handler from "../api/grade";
+import { handler } from "../api/grade";
 import { findTopic } from "@/data/topics";
 import { combinePoints, gateExtraction, gateRating, pickGap } from "@/agent/rateSchema";
 

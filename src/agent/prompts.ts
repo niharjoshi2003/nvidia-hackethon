@@ -11,7 +11,7 @@
  * the gate enforces, and the gate is the one that decides.
  */
 
-import { MISS_CATEGORIES } from "@/types";
+import { MISS_CATEGORIES } from "../types.js";
 
 export interface GradeRequest {
   transcript: string;

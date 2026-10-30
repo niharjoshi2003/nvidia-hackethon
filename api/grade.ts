@@ -18,8 +18,8 @@
  */
 
 import { z } from "zod";
-import { validateCoverage } from "../src/agent/gradeSchema";
-import { gateExtraction } from "../src/agent/rateSchema";
+import { validateCoverage } from "../src/agent/gradeSchema.js";
+import { gateExtraction } from "../src/agent/rateSchema.js";
 import {
   COVERAGE_SYSTEM,
   EXTRACT_SYSTEM,
@@ -34,9 +34,13 @@ import {
   rateUser,
   repairUser,
   type GradeRequest,
-} from "../src/agent/prompts";
+} from "../src/agent/prompts.js";
 
 export const config = { runtime: "nodejs" };
+
+// A default function is the legacy Node (req, res) signature on Vercel.
+// The fetch export selects Web Request/Response, matching the local dev server.
+export default { fetch: handler };
 
 // --- request ----------------------------------------------------------------
 
@@ -305,7 +309,7 @@ const json = (status: number, body: unknown) =>
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
-export default async function handler(req: Request): Promise<Response> {
+export async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json(405, { error: "method-not-allowed" });
 
   const parsed = anyRequestSchema.safeParse(await req.json().catch(() => null));

@@ -6,10 +6,11 @@
  * than showing zeros that look like a launch nobody tried.
  */
 
-import { emptyStats, readStats } from "./_counter";
-import { getStore } from "./_store";
+import { emptyStats, readStats } from "./_counter.js";
+import { getStore } from "./_store.js";
 
 export const config = { runtime: "nodejs" };
+export default { fetch: handler };
 
 const json = (status: number, body: unknown, cdn?: string) =>
   new Response(JSON.stringify(body), {
@@ -25,7 +26,7 @@ const json = (status: number, body: unknown, cdn?: string) =>
     },
   });
 
-export default async function handler(req: Request): Promise<Response> {
+export async function handler(req: Request): Promise<Response> {
   if (req.method !== "GET") return json(405, { error: "method-not-allowed" });
 
   const store = getStore();

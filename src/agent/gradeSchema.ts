@@ -22,8 +22,8 @@ import {
   MISS_CATEGORIES,
   type GradeRejectionReason,
   type MissCategory,
-} from "@/types";
-import { isQuotedFrom, isSuppliedLine, normalize } from "@/lib/text";
+} from "../types.js";
+import { isQuotedFrom, isSuppliedLine, normalize } from "../lib/text.js";
 
 // --- wire shapes ------------------------------------------------------------
 

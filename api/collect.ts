@@ -6,12 +6,13 @@
  * this only if the visitor left "count this interview" on.
  */
 
-import { threadFor } from "../src/data/threads";
-import { telemetrySchema } from "../src/lib/telemetrySchema";
-import { recordInterview } from "./_counter";
-import { getStore } from "./_store";
+import { threadFor } from "../src/data/threads.js";
+import { telemetrySchema } from "../src/lib/telemetrySchema.js";
+import { recordInterview } from "./_counter.js";
+import { getStore } from "./_store.js";
 
 export const config = { runtime: "nodejs" };
+export default { fetch: handler };
 
 const MAX_BODY_CHARS = 2000;
 const LIMIT_PER_HOUR = Number(process.env.COLLECT_RATE_LIMIT_PER_HOUR || 40);
@@ -35,7 +36,7 @@ const json = (status: number, body: unknown) =>
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
-export default async function handler(req: Request): Promise<Response> {
+export async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json(405, { error: "method-not-allowed" });
 
   const text = await req.text().catch(() => "");
