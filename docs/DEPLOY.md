@@ -9,6 +9,7 @@
    | `TOKEN_FACTORY_API_KEY` | Server-only; never `VITE_` |
    | `NEMOTRON_NANO` | e.g. `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` |
    | `NEMOTRON_ULTRA` | e.g. `nvidia/Nemotron-3-Ultra-550b-a55b` |
+   | `TAVILY_API_KEY` | server-only Tavily Search key for post-feedback study sources; `tavily_key` is accepted too |
 
 4. Deploy: `npx vercel deploy --prod`
 5. Smoke-test in Chrome/Edge:

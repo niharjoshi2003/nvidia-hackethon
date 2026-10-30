@@ -16,7 +16,7 @@ import { fileURLToPath, URL } from "node:url";
  * Imported through Vite's module runner rather than a plain import so edits to
  * the handler take effect without restarting the server.
  */
-const API_ROUTES = ["grade", "collect", "stats"];
+const API_ROUTES = ["grade", "collect", "stats", "study"];
 
 function apiRoutes(): Plugin {
   return {

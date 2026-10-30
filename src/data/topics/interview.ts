@@ -1,5 +1,5 @@
 import type { Topic } from "@/types";
-import { SHARED_CLAIMS as C } from "./sharedClaims";
+import { SHARED_CLAIMS as C } from "./sharedClaims.js";
 
 /**
  * Coach questions for the AI Engineer and Applied AI Engineer tracks.

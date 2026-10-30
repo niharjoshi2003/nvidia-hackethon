@@ -75,6 +75,21 @@ produce.
 
 ---
 
+## Study sources with Tavily
+
+After interview feedback, **Find sources with Tavily** searches for documentation
+and practical examples about a rubric idea that needs more practice. The server
+calls Tavily Search and displays up to three source links and snippets, with a
+retrieval time and expandable request details. Only public catalog text is sent
+for this search; candidate answers are excluded. Sources support further study
+and do not change the rubric or recorded ratings.
+
+Set the server-only `TAVILY_API_KEY` in `.env` and Vercel's Production environment,
+then redeploy. The existing `tavily_key` name is also accepted. Results are
+restricted to an allowlist of technical documentation domains and cached briefly.
+An unavailable provider or missing key produces an explicit error rather than
+placeholder sources.
+
 ## The coach session (AI Engineer and Applied AI Engineer)
 
 `/coach` is a five-minute session built on the same gate. The plan behind it is

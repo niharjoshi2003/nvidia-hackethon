@@ -12,6 +12,7 @@ import {
 import type { Topic } from "@/types";
 import { ArrowRightIcon, TargetIcon } from "./icons";
 import { Badge, Card, RubricLine, SectionLabel, SpokenQuote, cx } from "./ui";
+import StudySources from "./StudySources";
 
 const HERO_STYLE: Record<VerdictBand, string> = {
   strong: "border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 to-zinc-900/40",
@@ -264,6 +265,12 @@ export default function ThreadScorecard({
       )}
 
       {children}
+      {card.rated > 0 && (
+        <StudySources
+          topicId={topic.id}
+          rubricLine={card.gap?.rubricLine ?? card.coverage.find((row) => ["missed", "partial", "touched"].includes(row.status))?.line}
+        />
+      )}
     </div>
   );
 }

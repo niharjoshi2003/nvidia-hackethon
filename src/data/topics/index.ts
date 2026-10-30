@@ -1,10 +1,10 @@
 import type { Topic } from "@/types";
-import { agenticTopics } from "./agentic";
-import { interviewTopics } from "./interview";
-import { interviewMoreTopics } from "./interviewMore";
-import { systemDesignTopics } from "./systemDesign";
-import { llmCoreTopics } from "./llmCore";
-import { sweTopics } from "./swe";
+import { agenticTopics } from "./agentic.js";
+import { interviewTopics } from "./interview.js";
+import { interviewMoreTopics } from "./interviewMore.js";
+import { systemDesignTopics } from "./systemDesign.js";
+import { llmCoreTopics } from "./llmCore.js";
+import { sweTopics } from "./swe.js";
 
 export const seedTopics: Topic[] = [
   ...agenticTopics,

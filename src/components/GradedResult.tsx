@@ -6,6 +6,7 @@ import { plainVerdict } from "@/lib/summary";
 import type { SpokenMiss, Topic, TraceEntry } from "@/types";
 import Analysis from "./Analysis";
 import AnnotatedTranscript from "./AnnotatedTranscript";
+import StudySources from "./StudySources";
 import { ArrowRightIcon, CheckIcon, QuoteIcon, TargetIcon } from "./icons";
 import { Badge, Card, RubricLine, SectionLabel, SpokenQuote, cx } from "./ui";
 
@@ -281,6 +282,7 @@ export default function GradedResult({
           </div>
         )}
       </div>
+      {!hideTranscript && topic.source === "seed" && <StudySources topicId={topic.id} rubricLine={brief.targetRubricLine} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import grade from "../../api/grade";
 import collect from "../../api/collect";
 import stats from "../../api/stats";
+import study from "../../api/study";
 
 describe("deployed Web handler entry points", () => {
   it("rejects a malformed grade through the Web fetch export before calling a model", async () => {
@@ -14,5 +15,6 @@ describe("deployed Web handler entry points", () => {
     expect((await grade.fetch(new Request("http://localhost/api/grade"))).status).toBe(405);
     expect((await collect.fetch(new Request("http://localhost/api/collect"))).status).toBe(405);
     expect((await stats.fetch(new Request("http://localhost/api/stats", { method: "POST" }))).status).toBe(405);
+    expect((await study.fetch(new Request("http://localhost/api/study"))).status).toBe(405);
   });
 });

@@ -1,5 +1,5 @@
 import type { Topic } from "@/types";
-import { SHARED_CLAIMS as C } from "./sharedClaims";
+import { SHARED_CLAIMS as C } from "./sharedClaims.js";
 
 /**
  * Six more coach questions, written as three twin pairs, so the interview

@@ -1,5 +1,5 @@
 import type { Topic } from "@/types";
-import { SHARED_CLAIMS } from "./sharedClaims";
+import { SHARED_CLAIMS } from "./sharedClaims.js";
 
 /**
  * Rubric authoring rules, applied to every topic in this file:
